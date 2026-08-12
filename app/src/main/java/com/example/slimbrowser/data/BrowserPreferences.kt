@@ -5,7 +5,9 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import java.io.IOException
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 
 private val Context.browserDataStore by preferencesDataStore(name = "browser_preferences")
@@ -16,12 +18,17 @@ data class BrowserSettings(
 )
 
 class BrowserPreferences(private val context: Context) {
-    val settings: Flow<BrowserSettings> = context.browserDataStore.data.map { preferences ->
-        BrowserSettings(
-            homeUrl = preferences[HOME_URL].orEmpty(),
-            fullscreenEnabled = preferences[FULLSCREEN_ENABLED] ?: false,
-        )
-    }
+    val settings: Flow<BrowserSettings> = context.browserDataStore.data
+        .catch { error ->
+            if (error is IOException) emit(androidx.datastore.preferences.core.emptyPreferences())
+            else throw error
+        }
+        .map { preferences ->
+            BrowserSettings(
+                homeUrl = preferences[HOME_URL].orEmpty(),
+                fullscreenEnabled = preferences[FULLSCREEN_ENABLED] ?: false,
+            )
+        }
 
     suspend fun update(homeUrl: String, fullscreenEnabled: Boolean) {
         context.browserDataStore.edit { preferences ->

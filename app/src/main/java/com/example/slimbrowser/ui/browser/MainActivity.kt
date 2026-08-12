@@ -3,6 +3,7 @@ package com.example.slimbrowser.ui.browser
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.os.Bundle
+import android.view.View
 import android.view.ViewGroup
 import android.webkit.CookieManager
 import android.webkit.PermissionRequest
@@ -18,6 +19,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -51,12 +53,14 @@ class MainActivity : AppCompatActivity(), BrowserContract.View {
         restoredWebViewState = savedInstanceState?.getBundle(KEY_WEBVIEW_STATE)
         presenter = BrowserPresenter(BrowserPreferences(applicationContext), lifecycleScope)
 
-        binding.settingsFab.setOnClickListener { presenter.onFullscreenShortcutRequested() }
-        binding.settingsFab.setOnLongClickListener {
-            presenter.onSettingsRequested()
-            true
-        }
+        binding.settingsFab.setOnClickListener { presenter.onSettingsRequested() }
+        binding.fullscreenFab.setOnClickListener { presenter.onFullscreenShortcutRequested() }
         binding.retryButton.setOnClickListener { presenter.onRetryRequested() }
+        binding.errorSettingsButton.setOnClickListener { presenter.onSettingsRequested() }
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
+            applyContentInsets(insets)
+            insets
+        }
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() = presenter.onBackPressed()
         })
@@ -92,6 +96,7 @@ class MainActivity : AppCompatActivity(), BrowserContract.View {
     }
 
     override fun showSettings(settings: BrowserSettings, required: Boolean) {
+        showSystemBars()
         val dialogBinding = DialogSettingsBinding.inflate(layoutInflater)
         dialogBinding.urlInput.setText(settings.homeUrl)
         dialogBinding.fullscreenSwitch.isChecked = settings.fullscreenEnabled
@@ -104,6 +109,7 @@ class MainActivity : AppCompatActivity(), BrowserContract.View {
             .setCancelable(!required)
             .create()
 
+        dialog.setOnDismissListener { applyFullscreen(this.settings.fullscreenEnabled) }
         dialog.setOnShowListener {
             dialog.getButton(android.app.AlertDialog.BUTTON_NEGATIVE).isVisible = !required
             dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
@@ -134,13 +140,16 @@ class MainActivity : AppCompatActivity(), BrowserContract.View {
         } else {
             controller.show(WindowInsetsCompat.Type.systemBars())
         }
+        ViewCompat.requestApplyInsets(binding.root)
     }
 
     override fun updateFullscreenButton(enabled: Boolean) {
-        // The FAB stays visible so fullscreen can always be exited. Tap toggles the same
-        // fullscreen_enabled value shown by the settings switch; long press opens settings.
-        binding.settingsFab.alpha = if (enabled) 0.72f else 1f
-        binding.settingsFab.isVisible = true
+        binding.fullscreenFab.setImageResource(
+            if (enabled) R.drawable.ic_fullscreen_exit else R.drawable.ic_fullscreen_enter,
+        )
+        binding.fullscreenFab.contentDescription = getString(
+            if (enabled) R.string.exit_fullscreen else R.string.enter_fullscreen,
+        )
     }
 
     override fun showError(message: String) {
@@ -168,6 +177,35 @@ class MainActivity : AppCompatActivity(), BrowserContract.View {
     override fun goBack() = webView.goBack()
 
     override fun finishScreen() = finish()
+
+    override fun onResume() {
+        super.onResume()
+        webView.onResume()
+        applyFullscreen(settings.fullscreenEnabled)
+    }
+
+    override fun onPause() {
+        webView.onPause()
+        super.onPause()
+    }
+
+    private fun showSystemBars() {
+        WindowInsetsControllerCompat(window, binding.root).show(WindowInsetsCompat.Type.systemBars())
+    }
+
+    private fun applyContentInsets(insets: WindowInsetsCompat) {
+        val cutout = insets.getInsets(WindowInsetsCompat.Type.displayCutout())
+        val bars = if (settings.fullscreenEnabled) {
+            cutout
+        } else {
+            insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+        }
+        binding.webViewContainer.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+        binding.errorOverlay.setPadding(bars.left + 32.dp, bars.top + 32.dp, bars.right + 32.dp, bars.bottom + 32.dp)
+    }
+
+    private val Int.dp: Int
+        get() = (this * resources.displayMetrics.density).toInt()
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun configureWebView(target: WebView) {
@@ -197,6 +235,11 @@ class MainActivity : AppCompatActivity(), BrowserContract.View {
         }
         CookieManager.getInstance().setAcceptThirdPartyCookies(target, false)
         target.webChromeClient = object : WebChromeClient() {
+            override fun onProgressChanged(view: WebView, newProgress: Int) {
+                binding.pageProgress.progress = newProgress
+                binding.pageProgress.isVisible = newProgress in 1..99
+            }
+
             override fun onPermissionRequest(request: PermissionRequest) {
                 request.deny()
             }

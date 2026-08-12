@@ -1,6 +1,8 @@
 <resources>
     <string name="app_name">Slim Browser</string>
     <string name="open_settings">Open settings</string>
+    <string name="enter_fullscreen">Enter fullscreen</string>
+    <string name="exit_fullscreen">Exit fullscreen</string>
     <string name="settings">Settings</string>
     <string name="home_url">Home URL</string>
     <string name="https_only_hint">HTTPS only. A missing scheme is completed as https://.</string>

@@ -13,7 +13,6 @@
         android:theme="@style/Theme.SlimBrowser">
         <activity
             android:name=".ui.browser.MainActivity"
-            android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
