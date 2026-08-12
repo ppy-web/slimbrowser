@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">Slim Browser</string>
+    <string name="open_settings">Open settings</string>
+    <string name="settings">Settings</string>
+    <string name="home_url">Home URL</string>
+    <string name="https_only_hint">HTTPS only. A missing scheme is completed as https://.</string>
+    <string name="fullscreen">Immersive fullscreen</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="invalid_url">Enter a valid public HTTPS URL.</string>
+    <string name="error_title">Page unavailable</string>
+    <string name="error_message_default">The page could not be loaded.</string>
+    <string name="error_http">Server returned HTTP %1$d.</string>
+    <string name="error_renderer">The web rendering process stopped. Reload the page to continue.</string>
+    <string name="retry">Retry</string>
+</resources>
