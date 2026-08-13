@@ -1,5 +1,7 @@
 # SlimBrowser
 
+[中文说明](README.zh-CN.md) · **English**
+
 SlimBrowser is a minimal single-site Android browser built with Kotlin, XML Views, ViewBinding, Android System WebView, AndroidX WebKit, Preferences DataStore, and a small MVP layer.
 
 ## Toolchain
