@@ -22,7 +22,7 @@ No `org.jetbrains.kotlin.android` plugin is applied. AGP supplies built-in Kotli
 1. Inflate ViewBinding and install the WebView security configuration before loading content.
 2. Construct the presenter with the application-context DataStore repository and Activity lifecycle scope.
 3. Read the first DataStore snapshot.
-4. Apply the persisted fullscreen state through `WindowInsetsControllerCompat` and synchronize the FAB representation.
+4. Apply the persisted fullscreen state through `WindowInsetsControllerCompat` and synchronize the fullscreen button representation.
 5. Restore the WebView bundle when available.
 6. If restoration is unavailable and no home URL is stored, present a non-cancelable settings dialog.
 7. Otherwise load the normalized persisted HTTPS URL.
@@ -56,7 +56,7 @@ This does not turn arbitrary web content into trusted application code. Producti
 
 ## 6. Fullscreen interaction
 
-`fullscreen_enabled` is stored in Preferences DataStore. The settings `MaterialSwitch` and the floating action button both write the same key through the presenter/repository. The FAB remains available even in immersive mode to guarantee an exit path. A tap toggles fullscreen; a long press opens settings. Immersive mode hides status/navigation bars and allows transient reveal by edge swipe.
+`fullscreen_enabled` is stored in Preferences DataStore. The settings `MaterialSwitch` and dedicated fullscreen button both write the same key through the presenter/repository. The fullscreen button remains available even in immersive mode to guarantee an exit path, while a separate settings button opens the dialog. Immersive mode hides status/navigation bars and allows transient reveal by edge swipe.
 
 ## 7. Error and renderer recovery
 
@@ -97,7 +97,7 @@ Test at minimum on API 26 and API 37, using current Android System WebView/Chrom
 - Fresh install and mandatory setup.
 - Valid/invalid URL matrix.
 - Persistence across force-stop/relaunch.
-- Fullscreen transition from dialog and FAB, including escape from immersive mode.
+- Fullscreen transition from dialog and fullscreen button, including escape from immersive mode.
 - Internal link navigation and back history.
 - Activity/process recreation state recovery.
 - DNS, offline, HTTP 4xx/5xx, invalid certificate, Safe Browsing, and retry behavior.
@@ -110,7 +110,7 @@ Test at minimum on API 26 and API 37, using current Android System WebView/Chrom
 2. ViewBinding-generated classes are used; there is no synthetic view access or Compose.
 3. First launch cannot proceed without a valid HTTPS URL.
 4. The URL and fullscreen setting survive app restarts.
-5. Settings and FAB remain synchronized through `fullscreen_enabled`.
+5. Settings and fullscreen button remain synchronized through `fullscreen_enabled`.
 6. Cleartext and non-HTTPS main-frame navigations are rejected.
 7. TLS errors never proceed, mixed content is denied, and no privileged JavaScript bridge exists.
 8. Native error UI covers main-frame failures and retries.

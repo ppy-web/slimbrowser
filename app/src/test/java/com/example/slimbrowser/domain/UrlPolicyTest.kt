@@ -21,8 +21,9 @@ class UrlPolicyTest {
     }
 
     @Test
-    fun `accepts explicit 443 and international host`() {
+    fun `accepts valid explicit ports and international host`() {
         assertEquals("https://example.com:443/", UrlPolicy.normalize("https://example.com:443"))
+        assertEquals("https://example.com:8443/", UrlPolicy.normalize("https://example.com:8443"))
         assertEquals("https://xn--fsqu00a.xn--0zwm56d/", UrlPolicy.normalize("例子.测试"))
     }
 
@@ -35,12 +36,13 @@ class UrlPolicyTest {
     }
 
     @Test
-    fun `rejects credentials localhost malformed hosts and non 443 ports`() {
+    fun `rejects credentials localhost malformed hosts and invalid ports`() {
         assertNull(UrlPolicy.normalize("https://user:pass@example.com"))
         assertNull(UrlPolicy.normalize("https://localhost"))
         assertNull(UrlPolicy.normalize("https://intranet"))
         assertNull(UrlPolicy.normalize("https://-bad.example"))
-        assertNull(UrlPolicy.normalize("https://example.com:8443"))
+        assertNull(UrlPolicy.normalize("https://example.com:0"))
+        assertNull(UrlPolicy.normalize("https://example.com:65536"))
         assertNull(UrlPolicy.normalize("https://999.1.1.1"))
     }
 

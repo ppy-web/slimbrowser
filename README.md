@@ -30,8 +30,8 @@ cd E:\personal\SlimBrowser
 ## Behavior
 
 - The first launch reads Preferences DataStore. If no home URL exists, a non-cancelable settings dialog is shown.
-- URLs without a scheme are completed with `https://`; non-HTTPS schemes, embedded credentials, invalid hosts, and non-443 explicit ports are rejected.
-- The settings switch and floating action button both update and persist the same `fullscreen_enabled` preference. Tap the FAB to toggle immersive mode; long-press it to open the full settings dialog.
+- URLs without a scheme are completed with `https://`; non-HTTPS schemes, embedded credentials, invalid hosts, and invalid ports are rejected.
+- The settings switch and dedicated fullscreen button both update and persist the same `fullscreen_enabled` preference. A separate settings button opens the configuration dialog.
 - Immersive mode uses `WindowInsetsControllerCompat` and transient system bars by swipe.
 - Android back navigates WebView history before finishing the activity.
 - WebView state/history is saved in `onSaveInstanceState` and restored after recreation.
@@ -72,7 +72,7 @@ Recommended manual tests:
 
 1. Fresh install: mandatory settings dialog appears; Cancel is unavailable.
 2. Enter `example.com`: it persists and loads as `https://example.com/`.
-3. Enter `http://example.com`, a `file:`/`javascript:` URL, credentials, or port 8443: validation fails.
+3. Enter `http://example.com`, a `file:`/`javascript:` URL, embedded credentials, or an invalid port: validation fails.
 4. Toggle fullscreen in settings, then with the FAB; relaunch and confirm the same persisted state.
 5. Navigate through several links and press Back; WebView history is consumed before the activity exits.
 6. Rotate/recreate the activity and confirm page/history restoration.

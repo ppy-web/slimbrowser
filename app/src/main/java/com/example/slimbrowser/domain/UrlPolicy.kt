@@ -16,7 +16,7 @@ object UrlPolicy {
 
         val authority = uri.rawAuthority ?: return null
         val (rawHost, port) = splitAuthority(authority) ?: return null
-        if (port !in listOf(-1, 443)) return null
+        if (port != -1 && port !in 1..65535) return null
 
         val asciiHost = if (rawHost.contains(':')) {
             rawHost.lowercase()

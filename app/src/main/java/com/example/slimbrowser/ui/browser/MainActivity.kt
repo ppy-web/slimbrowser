@@ -1,14 +1,16 @@
 package com.example.slimbrowser.ui.browser
 
 import android.annotation.SuppressLint
+import android.content.ActivityNotFoundException
+import android.content.Intent
 import android.graphics.Bitmap
+import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.CookieManager
 import android.webkit.PermissionRequest
 import android.webkit.RenderProcessGoneDetail
-import android.webkit.SafeBrowsingResponse
 import android.webkit.SslErrorHandler
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
@@ -25,8 +27,11 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
+import androidx.webkit.SafeBrowsingResponseCompat
 import androidx.webkit.WebSettingsCompat
+import androidx.webkit.WebViewClientCompat
 import androidx.webkit.WebViewFeature
+import com.example.slimbrowser.BuildConfig
 import com.example.slimbrowser.R
 import com.example.slimbrowser.data.BrowserPreferences
 import com.example.slimbrowser.data.BrowserSettings
@@ -70,12 +75,11 @@ class MainActivity : AppCompatActivity(), BrowserContract.View {
 
     override fun onDestroy() {
         presenter.detach()
-        if (isFinishing) {
-            webView.stopLoading()
-            webView.webChromeClient = null
-            webView.webViewClient = WebViewClient()
-            webView.destroy()
-        }
+        webView.stopLoading()
+        webView.webChromeClient = null
+        webView.webViewClient = WebViewClient()
+        (webView.parent as? ViewGroup)?.removeView(webView)
+        webView.destroy()
         super.onDestroy()
     }
 
@@ -209,7 +213,7 @@ class MainActivity : AppCompatActivity(), BrowserContract.View {
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun configureWebView(target: WebView) {
-        WebView.setWebContentsDebuggingEnabled(false)
+        WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
         with(target.settings) {
             javaScriptEnabled = true
             domStorageEnabled = true
@@ -247,6 +251,21 @@ class MainActivity : AppCompatActivity(), BrowserContract.View {
         target.webViewClient = SecureWebViewClient()
     }
 
+    private fun openExternal(uri: Uri): Boolean {
+        val action = if (uri.scheme.equals("tel", ignoreCase = true)) {
+            Intent.ACTION_DIAL
+        } else {
+            Intent.ACTION_SENDTO
+        }
+        return try {
+            startActivity(Intent(action, uri))
+            true
+        } catch (_: ActivityNotFoundException) {
+            presenter.onMainFrameError(getString(R.string.no_external_app))
+            true
+        }
+    }
+
     private fun replaceCrashedWebView() {
         val parent = webView.parent as? ViewGroup ?: return
         val index = parent.indexOfChild(webView)
@@ -261,15 +280,16 @@ class MainActivity : AppCompatActivity(), BrowserContract.View {
         configureWebView(webView)
     }
 
-    private inner class SecureWebViewClient : WebViewClient() {
+    private inner class SecureWebViewClient : WebViewClientCompat() {
         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
             if (!request.isForMainFrame) return false
-            val normalized = UrlPolicy.normalize(request.url.toString())
-            return if (normalized == null) {
-                presenter.onMainFrameError(getString(R.string.invalid_url))
-                true
-            } else {
-                false
+            return when (request.url.scheme?.lowercase()) {
+                "https" -> false
+                "mailto", "tel" -> openExternal(request.url)
+                else -> {
+                    presenter.onMainFrameError(getString(R.string.invalid_url))
+                    true
+                }
             }
         }
 
@@ -310,7 +330,7 @@ class MainActivity : AppCompatActivity(), BrowserContract.View {
             view: WebView,
             request: WebResourceRequest,
             threatType: Int,
-            callback: SafeBrowsingResponse,
+            callback: SafeBrowsingResponseCompat,
         ) {
             callback.backToSafety(true)
             presenter.onMainFrameError(getString(R.string.error_message_default))

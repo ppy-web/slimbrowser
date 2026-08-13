@@ -10,6 +10,7 @@
     <string name="save">Save</string>
     <string name="cancel">Cancel</string>
     <string name="invalid_url">Enter a valid public HTTPS URL.</string>
+    <string name="no_external_app">No app is available to open this link.</string>
     <string name="error_title">Page unavailable</string>
     <string name="error_message_default">The page could not be loaded.</string>
     <string name="error_http">Server returned HTTP %1$d.</string>
