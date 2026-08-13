@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
@@ -13,7 +14,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="@string/home_url"
-        android:helperText="@string/https_only_hint">
+        app:helperText="@string/https_only_hint">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/urlInput"
@@ -24,11 +25,70 @@
             android:maxLines="1" />
     </com.google.android.material.textfield.TextInputLayout>
 
+    <TextView
+        android:id="@+id/emptyHomeHint"
+        style="@style/TextAppearance.Material3.BodySmall"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="@string/empty_home_hint" />
+
     <com.google.android.material.materialswitch.MaterialSwitch
         android:id="@+id/fullscreenSwitch"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
         android:text="@string/fullscreen" />
+
+    <com.google.android.material.materialswitch.MaterialSwitch
+        android:id="@+id/darkThemeSwitch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/dark_theme" />
+
+    <TextView
+        android:id="@+id/backgroundStatus"
+        style="@style/TextAppearance.Material3.BodyMedium"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="@string/default_background" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/chooseBackgroundButton"
+        style="@style/Widget.Material3.Button.OutlinedButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/choose_background" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/clearBackgroundButton"
+        style="@style/Widget.Material3.Button.TextButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/clear_background" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/addFavoriteButton"
+        style="@style/Widget.Material3.Button.OutlinedButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="@string/favorite_current_page" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/openFavoritesButton"
+        style="@style/Widget.Material3.Button.TextButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/open_favorites" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/clearSiteDataButton"
+        style="@style/Widget.Material3.Button.TextButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:contentDescription="@string/clear_site_data"
+        android:text="@string/clear_site_data" />
 
 </LinearLayout>

@@ -7,9 +7,12 @@ interface BrowserContract {
     interface View {
         fun renderSettings(settings: BrowserSettings)
         fun loadUrl(url: String)
+        fun showBlankHome()
         fun showSettings(settings: BrowserSettings, required: Boolean)
         fun showValidationError()
         fun applyFullscreen(enabled: Boolean)
+        fun applyTheme(darkThemeEnabled: Boolean)
+        fun applyBackground(uri: String?)
         fun updateFullscreenButton(enabled: Boolean)
         fun showError(message: String)
         fun hideError()
@@ -21,16 +24,22 @@ interface BrowserContract {
     }
 
     interface Presenter {
-        fun attach(view: View, savedWebViewState: Bundle?)
+        fun attach(view: View, savedWebViewState: Bundle?, fallbackUrl: String?)
         fun detach()
         fun onSettingsRequested()
-        fun onSettingsSubmitted(rawUrl: String, fullscreenEnabled: Boolean)
+        fun onSettingsSubmitted(
+            rawUrl: String,
+            fullscreenEnabled: Boolean,
+            darkThemeEnabled: Boolean,
+            backgroundUri: String?,
+        )
         fun onFullscreenShortcutRequested()
+        fun onRefreshRequested()
         fun onBackPressed()
-        fun onPageStarted()
-        fun onPageFinished()
+        fun onPageStarted(url: String)
+        fun onPageFinished(url: String)
         fun onMainFrameError(message: String)
-        fun onRendererGone()
+        fun onRendererGone(message: String)
         fun onRetryRequested()
     }
 }

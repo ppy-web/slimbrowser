@@ -11,10 +11,10 @@ No `org.jetbrains.kotlin.android` plugin is applied. AGP supplies built-in Kotli
 - Root Gradle files select AGP 9.3.0, repositories, AndroidX flags, and Gradle 9.5.0 distribution.
 - `app/src/main/AndroidManifest.xml` declares only Internet access, rejects cleartext traffic, disables backup, and exports only the launcher activity.
 - `activity_main.xml` holds a replaceable WebView container, native error overlay, and persistent floating action button.
-- `dialog_settings.xml` binds the home URL and fullscreen preference.
+- `dialog_settings.xml` binds the home URL, fullscreen, theme, and custom background preferences.
 - `BrowserContract` separates platform rendering from decisions.
-- `BrowserPresenter` owns initialization, settings changes, fullscreen state, retry, and back-navigation decisions.
-- `BrowserPreferences` is the single source of truth for `home_url` and `fullscreen_enabled`.
+- `BrowserPresenter` owns initialization, settings changes, fullscreen state, refresh, retry, and back-navigation decisions.
+- `BrowserPreferences` is the single source of truth for `home_url`, `fullscreen_enabled`, `dark_theme_enabled`, and `background_uri`.
 - `UrlPolicy` is pure Kotlin/JVM code and defines the URL trust boundary.
 
 ## 3. Startup sequence
@@ -57,6 +57,22 @@ This does not turn arbitrary web content into trusted application code. Producti
 ## 6. Fullscreen interaction
 
 `fullscreen_enabled` is stored in Preferences DataStore. The settings `MaterialSwitch` and dedicated fullscreen button both write the same key through the presenter/repository. The fullscreen button remains available even in immersive mode to guarantee an exit path, while a separate settings button opens the dialog. Immersive mode hides status/navigation bars and allows transient reveal by edge swipe.
+
+The settings dialog also supports a persisted custom background image, restoring the generated theme background, and clearing cookies, cache, history, and form data after confirmation.
+
+## 6.2 Navigation, refresh, downloads, and uploads
+
+Main-frame HTTPS navigation is limited to the configured home host and its subdomains on the same effective port. HTTP, file, data, JavaScript, and other unsupported schemes are blocked. `mailto:`, `tel:`, and `sms:` links use external applications; `intent:` links are parsed only for safe view/send/dial actions. Redirects are checked again in `onPageStarted`.
+
+The app supports pull-to-refresh and a refresh floating button. WebView progress is shown as a progress bar and an accessible status label. Web downloads are handed to Android `DownloadManager` only for the configured HTTPS site. HTML file uploads use the system document picker and do not grant camera or microphone access.
+
+## 6.1 Interface language, theme, and controls
+
+All app interface text uses Chinese by default, including on devices whose system locale is English, and the settings dialog does not expose a language switch. A global light/dark theme switch persists through Preferences DataStore and applies the corresponding Material night mode and generated wallpaper. The settings and fullscreen floating buttons are revealed by page interaction and fade out after roughly three seconds without interaction.
+
+## 6.3 Favorites and blank home search
+
+Favorites are persisted in Preferences DataStore as title/URL records. The settings dialog can bookmark the current page, open the bookmark list, open a saved page, or delete it. If the home URL is empty, the app shows a minimal search button instead of requiring a URL; submitted queries are URL-encoded and opened through Baidu search.
 
 ## 7. Error and renderer recovery
 
@@ -103,12 +119,17 @@ Test at minimum on API 26 and API 37, using current Android System WebView/Chrom
 - DNS, offline, HTTP 4xx/5xx, invalid certificate, Safe Browsing, and retry behavior.
 - Renderer termination and replacement.
 - Confirmation that camera/microphone/geolocation prompts are denied and non-HTTPS navigation is blocked.
+- Auto-hide/reveal behavior for floating controls.
+- Chinese interface and light/dark theme persistence, including wallpaper changes.
+- Same-site navigation, external link handling, download, upload, refresh, and loading-state behavior.
+- Custom background persistence, data clearing, and process/configuration state recovery.
+- TalkBack labels/live regions and system-locale resource selection without an in-app language switch.
 
 ## 10. Acceptance criteria
 
 1. Project syncs and builds with the fixed toolchain and no external Kotlin Android plugin.
 2. ViewBinding-generated classes are used; there is no synthetic view access or Compose.
-3. First launch cannot proceed without a valid HTTPS URL.
+3. First launch may use an empty home URL, which shows the minimal search entry; non-empty home URLs must be valid HTTPS URLs.
 4. The URL and fullscreen setting survive app restarts.
 5. Settings and fullscreen button remain synchronized through `fullscreen_enabled`.
 6. Cleartext and non-HTTPS main-frame navigations are rejected.
@@ -118,7 +139,11 @@ Test at minimum on API 26 and API 37, using current Android System WebView/Chrom
 10. WebView state restores after recreation.
 11. Renderer death does not crash the app and a fresh WebView can retry.
 12. JVM policy tests, lint, and debug assembly pass on a configured machine.
+13. All app interface text uses Chinese, and no language-switch control is shown.
+14. Light/dark theme selection persists and applies the matching wallpaper.
+15. Settings and fullscreen controls hide after inactivity and reappear on page interaction.
+16. Navigation, download, upload, refresh, custom background, data clearing, favorites, blank-home search, accessibility, and system-language resource scenarios pass on supported devices.
 
-## 11. Local generation limitations
+## 11. Local verification
 
-At skeleton-generation time this machine exposed no `java`, `javac`, `gradle`, `JAVA_HOME`, `ANDROID_HOME`, or `ANDROID_SDK_ROOT`. Therefore dependency resolution, compilation, lint, tests, and APK assembly could not be executed locally. The Gradle wrapper launcher JAR also could not be downloaded under the active execution policy; install/regenerate it from a trusted Gradle distribution before invoking the wrapper. Static source/configuration checks are still performed and documented in the completion report.
+The project has been verified locally with the Android Studio JDK 17 runtime. `testDebugUnitTest`, `lintDebug`, and `assembleDebug` all pass; the resulting debug APK was installed on an API 37 emulator for smoke testing of the blank home, search dialog, settings, and favorites entry points.

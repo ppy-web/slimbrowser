@@ -18,7 +18,7 @@ class BrowserPresenter(
     private var currentUrl = ""
     private var observeJob: Job? = null
 
-    override fun attach(view: BrowserContract.View, savedWebViewState: Bundle?) {
+    override fun attach(view: BrowserContract.View, savedWebViewState: Bundle?, fallbackUrl: String?) {
         this.view = view
         observeJob?.cancel()
         observeJob = scope.launch {
@@ -26,12 +26,17 @@ class BrowserPresenter(
             currentUrl = settings.homeUrl
             view.renderSettings(settings)
             view.applyFullscreen(settings.fullscreenEnabled)
+            view.applyTheme(settings.darkThemeEnabled)
+            view.applyBackground(settings.backgroundUri)
             view.updateFullscreenButton(settings.fullscreenEnabled)
 
-            val restored = savedWebViewState != null && view.restoreWebViewState(savedWebViewState)
+            val restored = settings.homeUrl.isNotBlank() &&
+                savedWebViewState != null && view.restoreWebViewState(savedWebViewState)
             when {
                 restored -> Unit
-                settings.homeUrl.isBlank() -> view.showSettings(settings, required = true)
+                !fallbackUrl.isNullOrBlank() && UrlPolicy.isAllowedNavigation(fallbackUrl, settings.homeUrl) ->
+                    view.loadUrl(fallbackUrl)
+                settings.homeUrl.isBlank() -> view.showBlankHome()
                 else -> view.loadUrl(settings.homeUrl)
             }
         }
@@ -47,8 +52,13 @@ class BrowserPresenter(
         view?.showSettings(settings, required = false)
     }
 
-    override fun onSettingsSubmitted(rawUrl: String, fullscreenEnabled: Boolean) {
-        val normalizedUrl = UrlPolicy.normalize(rawUrl)
+    override fun onSettingsSubmitted(
+        rawUrl: String,
+        fullscreenEnabled: Boolean,
+        darkThemeEnabled: Boolean,
+        backgroundUri: String?,
+    ) {
+        val normalizedUrl = if (rawUrl.trim().isEmpty()) "" else UrlPolicy.normalize(rawUrl)
         if (normalizedUrl == null) {
             view?.showValidationError()
             return
@@ -56,14 +66,22 @@ class BrowserPresenter(
 
         val urlChanged = normalizedUrl != settings.homeUrl
         val fullscreenChanged = fullscreenEnabled != settings.fullscreenEnabled
-        settings = BrowserSettings(normalizedUrl, fullscreenEnabled)
+        val themeChanged = darkThemeEnabled != settings.darkThemeEnabled
+        val backgroundChanged = backgroundUri != settings.backgroundUri
+        settings = BrowserSettings(normalizedUrl, fullscreenEnabled, darkThemeEnabled, backgroundUri)
         currentUrl = normalizedUrl
         view?.renderSettings(settings)
         view?.applyFullscreen(fullscreenEnabled)
+        view?.applyTheme(darkThemeEnabled)
+        view?.applyBackground(backgroundUri)
         view?.updateFullscreenButton(fullscreenEnabled)
-        if (urlChanged) view?.loadUrl(normalizedUrl)
-        if (urlChanged || fullscreenChanged) {
-            scope.launch { preferences.update(normalizedUrl, fullscreenEnabled) }
+        if (urlChanged) {
+            if (normalizedUrl.isBlank()) view?.showBlankHome() else view?.loadUrl(normalizedUrl)
+        }
+        if (urlChanged || fullscreenChanged || themeChanged || backgroundChanged) {
+            scope.launch {
+                preferences.update(normalizedUrl, fullscreenEnabled, darkThemeEnabled, backgroundUri)
+            }
         }
     }
 
@@ -76,6 +94,10 @@ class BrowserPresenter(
         scope.launch { preferences.setFullscreenEnabled(enabled) }
     }
 
+    override fun onRefreshRequested() {
+        view?.reloadPage()
+    }
+
     override fun onBackPressed() {
         when {
             view?.canGoBack() == true -> view?.goBack()
@@ -83,18 +105,21 @@ class BrowserPresenter(
         }
     }
 
-    override fun onPageStarted() {
+    override fun onPageStarted(url: String) {
+        currentUrl = url
         view?.hideError()
     }
 
-    override fun onPageFinished() = Unit
+    override fun onPageFinished(url: String) {
+        currentUrl = url
+    }
 
     override fun onMainFrameError(message: String) {
         view?.showError(message)
     }
 
-    override fun onRendererGone() {
-        view?.showError("The web rendering process stopped. Reload the page to continue.")
+    override fun onRendererGone(message: String) {
+        view?.showError(message)
     }
 
     override fun onRetryRequested() {

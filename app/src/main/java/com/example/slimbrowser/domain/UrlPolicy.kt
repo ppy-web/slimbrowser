@@ -42,6 +42,26 @@ object UrlPolicy {
 
     fun isAllowed(url: String): Boolean = normalize(url) != null
 
+    /** Allows HTTPS navigation only on the configured home host or one of its subdomains. */
+    fun isAllowedNavigation(url: String, homeUrl: String): Boolean {
+        val normalizedUrl = normalize(url) ?: return false
+        val urlHost = runCatching { URI(normalizedUrl).host?.lowercase() }.getOrNull() ?: return false
+        val normalizedHome = normalize(homeUrl)
+        if (normalizedHome == null) {
+            return isBaiduHost(urlHost, normalizedUrl)
+        }
+        val homeHost = runCatching { URI(normalizedHome).host?.lowercase() }.getOrNull() ?: return false
+        val urlPort = runCatching { URI(normalizedUrl).let { if (it.port == -1) 443 else it.port } }.getOrNull()
+        val homePort = runCatching { URI(normalizedHome).let { if (it.port == -1) 443 else it.port } }.getOrNull()
+        if (urlHost.isNullOrBlank() || homeHost.isNullOrBlank()) return false
+        return urlPort == homePort && (urlHost == homeHost || urlHost.endsWith(".$homeHost"))
+    }
+
+    private fun isBaiduHost(host: String, url: String): Boolean {
+        val port = runCatching { URI(url).let { if (it.port == -1) 443 else it.port } }.getOrNull()
+        return port == 443 && (host == "baidu.com" || host.endsWith(".baidu.com"))
+    }
+
     private fun splitAuthority(authority: String): Pair<String, Int>? {
         if (authority.isBlank() || '@' in authority) return null
         if (authority.startsWith('[')) {
