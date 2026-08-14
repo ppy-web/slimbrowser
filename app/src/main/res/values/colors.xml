@@ -1,3 +1,7 @@
 <resources>
     <color name="seed">#355F8A</color>
+    <color name="glass_fab_fill">#3DFFFFFF</color>
+    <color name="glass_control_fill">#52FFFFFF</color>
+    <color name="glass_control_fill_subtle">#2EFFFFFF</color>
+    <color name="glass_control_outline">#B8FFFFFF</color>
 </resources>

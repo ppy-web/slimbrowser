@@ -68,11 +68,11 @@ The app supports pull-to-refresh and a refresh floating button. WebView progress
 
 ## 6.1 Interface language, theme, and controls
 
-All app interface text uses Chinese by default, including on devices whose system locale is English, and the settings dialog does not expose a language switch. A global light/dark theme switch persists through Preferences DataStore and applies the corresponding Material night mode and generated wallpaper. The bottom-centered action row is hidden by default, revealed only after a two-finger pinch changes span, and fades out after roughly three seconds.
+All app interface text uses Chinese by default, including on devices whose system locale is English, and the settings dialog does not expose a language switch. A global light/dark theme switch persists through Preferences DataStore and applies the corresponding Material night mode and generated wallpaper. The bottom-centered action row is shown by default and remains available.
 
 ## 6.3 Favorites and blank home search
 
-Favorites are persisted in Preferences DataStore as title/URL records. The settings dialog can bookmark the current page, open the bookmark list, open a saved page, or delete it. If the home URL is empty, the app shows a minimal search button instead of requiring a URL; submitted queries are URL-encoded and opened through Baidu search.
+Favorites are persisted in Preferences DataStore as title/URL records. The settings dialog can bookmark the current page, open the bookmark list, open a saved page, or delete it. If the home URL is empty, the app shows saved sites as a four-column grid of circular shortcuts on a transparent background, without headings or helper text; submitted search queries are URL-encoded and opened through Baidu search.
 
 ## 7. Error and renderer recovery
 
@@ -119,7 +119,7 @@ Test at minimum on API 26 and API 37, using current Android System WebView/Chrom
 - DNS, offline, HTTP 4xx/5xx, invalid certificate, Safe Browsing, and retry behavior.
 - Renderer termination and replacement.
 - Confirmation that camera/microphone/geolocation prompts are denied and non-HTTPS navigation is blocked.
-- Default-hidden controls, two-finger pinch reveal, bottom-centered action row, and automatic fade-out.
+- Default-visible, bottom-centered action row.
 - Chinese interface and light/dark theme persistence, including wallpaper changes.
 - Same-site navigation, external link handling, download, upload, refresh, and loading-state behavior.
 - Custom background persistence, data clearing, and process/configuration state recovery.
@@ -129,7 +129,7 @@ Test at minimum on API 26 and API 37, using current Android System WebView/Chrom
 
 1. Project syncs and builds with the fixed toolchain and no external Kotlin Android plugin.
 2. ViewBinding-generated classes are used; there is no synthetic view access or Compose.
-3. First launch may use an empty home URL, which shows the minimal search entry; non-empty home URLs must be valid HTTPS URLs.
+3. First launch may use an empty home URL, which shows saved sites and the bottom search action; non-empty home URLs must be valid HTTPS URLs.
 4. The URL and fullscreen setting survive app restarts.
 5. Settings and fullscreen button remain synchronized through `fullscreen_enabled`.
 6. Cleartext and non-HTTPS main-frame navigations are rejected.

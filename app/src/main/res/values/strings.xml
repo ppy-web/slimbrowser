@@ -5,8 +5,8 @@
     <string name="exit_fullscreen">退出全屏</string>
     <string name="settings">设置</string>
     <string name="home_url">首页网址（可留空）</string>
-    <string name="https_only_hint">仅支持 HTTPS；留空显示简约搜索页，未填写协议时会自动补充 https://。</string>
-    <string name="empty_home_hint">留空后，首页显示搜索图标，搜索将使用百度。</string>
+    <string name="https_only_hint">仅支持 HTTPS；留空显示收藏页，未填写协议时会自动补充 https://。</string>
+    <string name="empty_home_hint">留空后，首页显示收藏的网站；可通过底部搜索按钮使用百度搜索。</string>
     <string name="fullscreen">沉浸式全屏</string>
     <string name="dark_theme">暗色主题</string>
     <string name="save">保存</string>

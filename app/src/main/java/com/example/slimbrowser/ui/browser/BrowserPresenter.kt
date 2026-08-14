@@ -72,16 +72,29 @@ class BrowserPresenter(
         currentUrl = normalizedUrl
         view?.renderSettings(settings)
         view?.applyFullscreen(fullscreenEnabled)
-        view?.applyTheme(darkThemeEnabled)
-        view?.applyBackground(backgroundUri)
         view?.updateFullscreenButton(fullscreenEnabled)
         if (urlChanged) {
             if (normalizedUrl.isBlank()) view?.showBlankHome() else view?.loadUrl(normalizedUrl)
         }
         if (urlChanged || fullscreenChanged || themeChanged || backgroundChanged) {
-            scope.launch {
-                preferences.update(normalizedUrl, fullscreenEnabled, darkThemeEnabled, backgroundUri)
+            if (themeChanged) {
+                // AppCompat may recreate the Activity when the night mode changes. Persist the
+                // new value first so the recreated Activity cannot briefly restore the old theme.
+                scope.launch {
+                    preferences.update(normalizedUrl, fullscreenEnabled, darkThemeEnabled, backgroundUri)
+                    view?.applyTheme(darkThemeEnabled)
+                    view?.applyBackground(backgroundUri)
+                }
+            } else {
+                view?.applyTheme(darkThemeEnabled)
+                view?.applyBackground(backgroundUri)
+                scope.launch {
+                    preferences.update(normalizedUrl, fullscreenEnabled, darkThemeEnabled, backgroundUri)
+                }
             }
+        } else {
+            view?.applyTheme(darkThemeEnabled)
+            view?.applyBackground(backgroundUri)
         }
     }
 

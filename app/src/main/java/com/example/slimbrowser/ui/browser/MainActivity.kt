@@ -1,6 +1,7 @@
 package com.example.slimbrowser.ui.browser
 
 import android.annotation.SuppressLint
+import android.app.Dialog
 import android.app.DownloadManager
 import android.content.ActivityNotFoundException
 import android.content.Context
@@ -8,16 +9,18 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.graphics.Typeface
+import android.graphics.drawable.ColorDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
-import android.os.Handler
-import android.os.Looper
 import java.io.File
 import java.net.URLEncoder
-import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.Window
+import android.view.WindowManager
+import android.widget.GridLayout
 import android.widget.Toast
 import android.webkit.CookieManager
 import android.webkit.PermissionRequest
@@ -34,11 +37,14 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.appcompat.content.res.AppCompatResources
+import androidx.appcompat.widget.AppCompatTextView
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.isVisible
+import androidx.core.view.updateLayoutParams
 import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
 import androidx.webkit.SafeBrowsingResponseCompat
@@ -55,6 +61,7 @@ import com.example.slimbrowser.databinding.ActivityMainBinding
 import com.example.slimbrowser.databinding.DialogSettingsBinding
 import com.example.slimbrowser.databinding.DialogSearchBinding
 import com.example.slimbrowser.domain.UrlPolicy
+import com.google.android.material.color.MaterialColors
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.launch
 
@@ -94,23 +101,12 @@ class MainActivity : AppCompatActivity(), BrowserContract.View {
             WebChromeClient.FileChooserParams.parseResult(result.resultCode, result.data),
         )
     }
-    private val controlsHandler = Handler(Looper.getMainLooper())
-    private var initialPinchSpan = 0f
-    private var pinchRevealTriggered = false
-    private val hideControlsRunnable = Runnable {
-        binding.actionButtons.animate()
-            .alpha(0f)
-            .setDuration(CONTROLS_ANIMATION_MS)
-            .withEndAction { binding.actionButtons.isVisible = false }
-            .start()
-    }
-
-    @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        binding.actionButtons.setBackdropSource(binding.contentLayer)
 
         webView = binding.webView
         configureWebView(webView)
@@ -133,36 +129,6 @@ class MainActivity : AppCompatActivity(), BrowserContract.View {
         binding.searchFab.setOnClickListener { showSearchDialog() }
         binding.swipeRefresh.setOnChildScrollUpCallback { _, _ -> webView.canScrollVertically(-1) }
         binding.swipeRefresh.setOnRefreshListener { presenter.onRefreshRequested() }
-        webView.setOnTouchListener { view, event ->
-            when (event.actionMasked) {
-                MotionEvent.ACTION_DOWN -> {
-                    initialPinchSpan = 0f
-                    pinchRevealTriggered = false
-                }
-                MotionEvent.ACTION_POINTER_DOWN -> if (event.pointerCount >= 2) {
-                    initialPinchSpan = event.pinchSpan()
-                }
-                MotionEvent.ACTION_MOVE -> if (
-                    event.pointerCount >= 2 &&
-                    initialPinchSpan > 0f &&
-                    !pinchRevealTriggered &&
-                    kotlin.math.abs(event.pinchSpan() - initialPinchSpan) >= PINCH_REVEAL_DISTANCE_DP.dp
-                ) {
-                    pinchRevealTriggered = true
-                    revealControls()
-                }
-                MotionEvent.ACTION_UP,
-                MotionEvent.ACTION_CANCEL,
-                -> {
-                    initialPinchSpan = 0f
-                    pinchRevealTriggered = false
-                }
-            }
-            if (event.actionMasked == MotionEvent.ACTION_UP) {
-                view.performClick()
-            }
-            false
-        }
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
             applyContentInsets(insets)
             insets
@@ -172,11 +138,9 @@ class MainActivity : AppCompatActivity(), BrowserContract.View {
         })
 
         presenter.attach(this, restoredWebViewState, fallbackUrl)
-        hideControlsImmediately()
     }
 
     override fun onDestroy() {
-        controlsHandler.removeCallbacks(hideControlsRunnable)
         settingsDialogBinding = null
         filePathCallback?.onReceiveValue(null)
         filePathCallback = null
@@ -208,6 +172,9 @@ class MainActivity : AppCompatActivity(), BrowserContract.View {
 
     override fun loadUrl(url: String) {
         hideError()
+        binding.favoritesHome.isVisible = false
+        binding.swipeRefresh.isEnabled = true
+        webView.isVisible = true
         binding.searchFab.isVisible = false
         webView.loadUrl(url)
     }
@@ -216,11 +183,17 @@ class MainActivity : AppCompatActivity(), BrowserContract.View {
         searchSessionActive = false
         webView.stopLoading()
         webView.loadUrl("about:blank")
+        webView.isVisible = false
+        binding.swipeRefresh.isEnabled = false
         binding.swipeRefresh.isRefreshing = false
         binding.loadingStatus.isVisible = false
         binding.pageProgress.isVisible = false
         binding.errorOverlay.isVisible = false
+        binding.favoritesHome.isVisible = true
         binding.searchFab.isVisible = true
+        lifecycleScope.launch {
+            renderFavoritesHome(browserPreferences.getFavorites())
+        }
     }
 
     override fun showSettings(settings: BrowserSettings, required: Boolean) {
@@ -235,55 +208,48 @@ class MainActivity : AppCompatActivity(), BrowserContract.View {
             else R.string.custom_background,
         )
 
-        val dialog = MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.settings)
-            .setView(dialogBinding.root)
-            .setNegativeButton(R.string.cancel, null)
-            .setPositiveButton(R.string.save, null)
-            .setCancelable(!required)
-            .create()
+        val dialog = createLiquidDialog(dialogBinding.root, cancelable = !required)
 
         settingsDialogBinding = dialogBinding
         dialog.setOnDismissListener {
             applyFullscreen(this.settings.fullscreenEnabled)
             settingsDialogBinding = null
         }
-        dialog.setOnShowListener {
-            dialog.getButton(android.app.AlertDialog.BUTTON_NEGATIVE).isVisible = !required
-            dialogBinding.chooseBackgroundButton.setOnClickListener {
-                backgroundPicker.launch(arrayOf("image/*"))
-            }
-            dialogBinding.clearBackgroundButton.setOnClickListener {
-                pendingBackgroundUri = null
-                dialogBinding.backgroundStatus.setText(R.string.default_background)
-            }
-            dialogBinding.clearSiteDataButton.setOnClickListener { clearSiteData() }
-            dialogBinding.addFavoriteButton.setOnClickListener { addCurrentPageToFavorites() }
-            dialogBinding.openFavoritesButton.setOnClickListener {
-                dialog.dismiss()
-                showFavoritesDialog()
-            }
-            dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                val rawUrl = dialogBinding.urlInput.text?.toString().orEmpty()
-                val normalized = if (rawUrl.trim().isEmpty()) "" else UrlPolicy.normalize(rawUrl)
-                if (normalized == null) {
-                    dialogBinding.urlInputLayout.error = getString(R.string.invalid_url)
-                } else {
-                    dialogBinding.urlInputLayout.error = null
-                    if (normalized.isNotBlank()) {
-                        searchSessionActive = false
-                    }
-                    presenter.onSettingsSubmitted(
-                        normalized,
-                        dialogBinding.fullscreenSwitch.isChecked,
-                        dialogBinding.darkThemeSwitch.isChecked,
-                        pendingBackgroundUri,
-                    )
-                    dialog.dismiss()
+        dialogBinding.cancelButton.isVisible = !required
+        dialogBinding.cancelButton.setOnClickListener { dialog.dismiss() }
+        dialogBinding.chooseBackgroundButton.setOnClickListener {
+            backgroundPicker.launch(arrayOf("image/*"))
+        }
+        dialogBinding.clearBackgroundButton.setOnClickListener {
+            pendingBackgroundUri = null
+            dialogBinding.backgroundStatus.setText(R.string.default_background)
+        }
+        dialogBinding.clearSiteDataButton.setOnClickListener { clearSiteData() }
+        dialogBinding.addFavoriteButton.setOnClickListener { addCurrentPageToFavorites() }
+        dialogBinding.openFavoritesButton.setOnClickListener {
+            dialog.dismiss()
+            showFavoritesDialog()
+        }
+        dialogBinding.saveButton.setOnClickListener {
+            val rawUrl = dialogBinding.urlInput.text?.toString().orEmpty()
+            val normalized = if (rawUrl.trim().isEmpty()) "" else UrlPolicy.normalize(rawUrl)
+            if (normalized == null) {
+                dialogBinding.urlInputLayout.error = getString(R.string.invalid_url)
+            } else {
+                dialogBinding.urlInputLayout.error = null
+                if (normalized.isNotBlank()) {
+                    searchSessionActive = false
                 }
+                presenter.onSettingsSubmitted(
+                    normalized,
+                    dialogBinding.fullscreenSwitch.isChecked,
+                    dialogBinding.darkThemeSwitch.isChecked,
+                    pendingBackgroundUri,
+                )
+                dialog.dismiss()
             }
         }
-        dialog.show()
+        showLiquidDialog(dialog, expanded = true)
     }
 
     override fun showValidationError() {
@@ -333,6 +299,7 @@ class MainActivity : AppCompatActivity(), BrowserContract.View {
         }
         binding.errorOverlay.background = binding.themeWallpaper.drawable?.constantState
             ?.newDrawable(resources)
+        refreshHomeGlassIcons()
     }
 
     override fun updateFullscreenButton(enabled: Boolean) {
@@ -383,7 +350,6 @@ class MainActivity : AppCompatActivity(), BrowserContract.View {
         super.onResume()
         webView.onResume()
         applyFullscreen(settings.fullscreenEnabled)
-        hideControlsImmediately()
     }
 
     override fun onPause() {
@@ -398,34 +364,59 @@ class MainActivity : AppCompatActivity(), BrowserContract.View {
     private fun showSearchDialog() {
         showSystemBars()
         val dialogBinding = DialogSearchBinding.inflate(layoutInflater)
-        val dialog = MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.search)
-            .setView(dialogBinding.root)
-            .setNegativeButton(R.string.cancel, null)
-            .setPositiveButton(R.string.search, null)
-            .create()
-        dialog.setOnShowListener {
-            val searchButton = dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE)
-            searchButton.setOnClickListener {
-                val query = dialogBinding.searchInput.text?.toString()?.trim().orEmpty()
-                if (query.isBlank()) {
-                    dialogBinding.searchInputLayout.error = getString(R.string.empty_search_query)
-                    return@setOnClickListener
-                }
-                dialogBinding.searchInputLayout.error = null
-                val encodedQuery = URLEncoder.encode(query, Charsets.UTF_8.name())
-                searchSessionActive = true
-                loadUrl("https://www.baidu.com/s?wd=$encodedQuery")
-                dialog.dismiss()
+        val dialog = createLiquidDialog(dialogBinding.root, cancelable = true)
+        dialogBinding.cancelButton.setOnClickListener { dialog.dismiss() }
+        dialogBinding.searchButton.setOnClickListener {
+            val query = dialogBinding.searchInput.text?.toString()?.trim().orEmpty()
+            if (query.isBlank()) {
+                dialogBinding.searchInputLayout.error = getString(R.string.empty_search_query)
+                return@setOnClickListener
             }
-            dialogBinding.searchInput.setOnEditorActionListener { _, _, _ ->
-                searchButton.performClick()
-                true
-            }
-            dialogBinding.searchInput.requestFocus()
-            dialog.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE)
+            dialogBinding.searchInputLayout.error = null
+            val encodedQuery = URLEncoder.encode(query, Charsets.UTF_8.name())
+            searchSessionActive = true
+            loadUrl("https://www.baidu.com/s?wd=$encodedQuery")
+            dialog.dismiss()
         }
+        dialogBinding.searchInput.setOnEditorActionListener { _, _, _ ->
+            dialogBinding.searchButton.performClick()
+            true
+        }
+        showLiquidDialog(dialog, expanded = false)
+        dialogBinding.searchInput.requestFocus()
+        dialog.window?.setSoftInputMode(
+            WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE or
+                WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE,
+        )
+    }
+
+    private fun createLiquidDialog(surface: LiquidGlassBar, cancelable: Boolean): Dialog =
+        Dialog(this).apply {
+            requestWindowFeature(Window.FEATURE_NO_TITLE)
+            setContentView(surface)
+            setCancelable(cancelable)
+            setCanceledOnTouchOutside(cancelable)
+            surface.setGlassCornerRadiusDp(28f)
+            surface.setBackdropSource(binding.contentLayer)
+        }
+
+    private fun showLiquidDialog(dialog: Dialog, expanded: Boolean) {
         dialog.show()
+        dialog.window?.apply {
+            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+            addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+            attributes = attributes.apply { dimAmount = 0.28f }
+            decorView.setPadding(20.dp, 16.dp, 20.dp, 16.dp)
+            setLayout(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                if (expanded) {
+                    (resources.displayMetrics.heightPixels * 0.86f).toInt()
+                } else {
+                    WindowManager.LayoutParams.WRAP_CONTENT
+                },
+            )
+            setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+        }
     }
 
     private fun addCurrentPageToFavorites() {
@@ -485,32 +476,84 @@ class MainActivity : AppCompatActivity(), BrowserContract.View {
             .show()
     }
 
+    private fun renderFavoritesHome(favorites: List<Favorite>) {
+        if (!binding.favoritesHome.isVisible) return
+        val sortedFavorites = favorites.sortedBy { it.title.lowercase() }
+        binding.favoritesGrid.removeAllViews()
+        sortedFavorites.forEach { favorite ->
+            binding.favoritesGrid.addView(
+                LiquidGlassBar(this).apply {
+                    layoutParams = favoriteGridItemLayoutParams()
+                    setGlassCornerRadiusDp(32f)
+                    setLiveBackdropUpdates(false)
+                    setBackdropSource(binding.themeWallpaper)
+                    gravity = android.view.Gravity.CENTER
+                    foreground = AppCompatResources.getDrawable(context, R.drawable.glass_icon_ripple)
+                    isClickable = true
+                    isFocusable = true
+                    contentDescription = favorite.title
+                    setOnClickListener { openFavorite(favorite) }
+                    addView(
+                        AppCompatTextView(context).apply {
+                            text = favorite.title.trim().take(1).ifBlank { "•" }
+                    textSize = 18f
+                            setTypeface(typeface, Typeface.BOLD)
+                            gravity = android.view.Gravity.CENTER
+                            maxLines = 1
+                            setTextColor(
+                                MaterialColors.getColor(
+                                    this,
+                                    com.google.android.material.R.attr.colorOnSurface,
+                                ),
+                            )
+                            isClickable = false
+                            isFocusable = false
+                        },
+                    )
+                },
+            )
+        }
+        val missingCells = (HOME_GRID_COLUMN_COUNT - sortedFavorites.size % HOME_GRID_COLUMN_COUNT) %
+            HOME_GRID_COLUMN_COUNT
+        repeat(missingCells) {
+            binding.favoritesGrid.addView(
+                View(this).apply {
+                    visibility = View.INVISIBLE
+                    layoutParams = favoriteGridItemLayoutParams()
+                },
+            )
+        }
+    }
+
+    private fun favoriteGridItemLayoutParams() = GridLayout.LayoutParams(
+        GridLayout.spec(GridLayout.UNDEFINED),
+        GridLayout.spec(GridLayout.UNDEFINED, GridLayout.CENTER, 1f),
+    ).apply {
+        width = 64.dp
+        height = 64.dp
+        setMargins(6.dp, 6.dp, 6.dp, 6.dp)
+    }
+
+    private fun openFavorite(favorite: Favorite) {
+        val normalized = UrlPolicy.normalize(favorite.url)
+        if (normalized == null) {
+            Toast.makeText(this, R.string.favorite_unavailable, Toast.LENGTH_SHORT).show()
+            return
+        }
+        allowedFavoriteHosts += normalized
+        loadUrl(normalized)
+    }
+
+    private fun refreshHomeGlassIcons() {
+        for (index in 0 until binding.favoritesGrid.childCount) {
+            (binding.favoritesGrid.getChildAt(index) as? LiquidGlassBar)?.refreshBackdrop()
+        }
+    }
+
     private fun isAllowedWebUrl(url: String): Boolean {
         if (searchSessionActive && UrlPolicy.isAllowed(url)) return true
         if (UrlPolicy.isAllowedNavigation(url, settings.homeUrl)) return true
         return allowedFavoriteHosts.any { UrlPolicy.isAllowedNavigation(url, it) }
-    }
-
-    private fun revealControls() {
-        controlsHandler.removeCallbacks(hideControlsRunnable)
-        binding.actionButtons.animate().cancel()
-        binding.actionButtons.isVisible = true
-        binding.actionButtons.alpha = 1f
-        controlsHandler.postDelayed(hideControlsRunnable, CONTROLS_HIDE_DELAY_MS)
-    }
-
-    private fun hideControlsImmediately() {
-        controlsHandler.removeCallbacks(hideControlsRunnable)
-        binding.actionButtons.animate().cancel()
-        binding.actionButtons.alpha = 0f
-        binding.actionButtons.isVisible = false
-    }
-
-    private fun MotionEvent.pinchSpan(): Float {
-        if (pointerCount < 2) return 0f
-        val deltaX = getX(0) - getX(1)
-        val deltaY = getY(0) - getY(1)
-        return kotlin.math.sqrt(deltaX * deltaX + deltaY * deltaY)
     }
 
     private fun applyContentInsets(insets: WindowInsetsCompat) {
@@ -522,6 +565,18 @@ class MainActivity : AppCompatActivity(), BrowserContract.View {
         }
         binding.webViewContainer.setPadding(bars.left, bars.top, bars.right, bars.bottom)
         binding.errorOverlay.setPadding(bars.left + 32.dp, bars.top + 32.dp, bars.right + 32.dp, bars.bottom + 32.dp)
+        binding.favoritesHome.setPadding(
+            bars.left + 24.dp,
+            bars.top + 32.dp,
+            bars.right + 24.dp,
+            bars.bottom + 24.dp,
+        )
+        binding.favoritesHome.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+            bottomMargin = bars.bottom + 76.dp
+        }
+        binding.actionButtons.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+            bottomMargin = bars.bottom + 20.dp
+        }
     }
 
     private val Int.dp: Int
@@ -813,9 +868,7 @@ class MainActivity : AppCompatActivity(), BrowserContract.View {
     private companion object {
         const val KEY_WEBVIEW_STATE = "webview_state"
         const val KEY_CURRENT_URL = "current_url"
-        const val CONTROLS_HIDE_DELAY_MS = 3_000L
-        const val CONTROLS_ANIMATION_MS = 220L
-        const val PINCH_REVEAL_DISTANCE_DP = 24
+        const val HOME_GRID_COLUMN_COUNT = 4
         const val BACKGROUND_FILE_NAME = "custom_background_image"
     }
 }
