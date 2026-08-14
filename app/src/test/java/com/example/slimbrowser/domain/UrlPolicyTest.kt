@@ -58,4 +58,19 @@ class UrlPolicyTest {
         assertTrue(UrlPolicy.isAllowed("https://example.com"))
         assertFalse(UrlPolicy.isAllowed("http://example.com"))
     }
+
+    @Test
+    fun `navigation stays on configured host and port`() {
+        assertTrue(UrlPolicy.isAllowedNavigation("https://example.com/path", "https://example.com"))
+        assertTrue(UrlPolicy.isAllowedNavigation("https://cdn.example.com/file", "https://example.com"))
+        assertFalse(UrlPolicy.isAllowedNavigation("https://other.example.net", "https://example.com"))
+        assertFalse(UrlPolicy.isAllowedNavigation("https://example.com:8443", "https://example.com"))
+    }
+
+    @Test
+    fun `blank home allows baidu search navigation only`() {
+        assertTrue(UrlPolicy.isAllowedNavigation("https://www.baidu.com/s?wd=test", ""))
+        assertTrue(UrlPolicy.isAllowedNavigation("https://tieba.baidu.com/", ""))
+        assertFalse(UrlPolicy.isAllowedNavigation("https://example.com/", ""))
+    }
 }
