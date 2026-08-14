@@ -95,6 +95,8 @@ class MainActivity : AppCompatActivity(), BrowserContract.View {
         )
     }
     private val controlsHandler = Handler(Looper.getMainLooper())
+    private var initialPinchSpan = 0f
+    private var pinchRevealTriggered = false
     private val hideControlsRunnable = Runnable {
         binding.actionButtons.animate()
             .alpha(0f)
@@ -118,25 +120,43 @@ class MainActivity : AppCompatActivity(), BrowserContract.View {
         presenter = BrowserPresenter(browserPreferences, lifecycleScope)
 
         binding.settingsFab.setOnClickListener {
-            revealControls()
             presenter.onSettingsRequested()
         }
         binding.fullscreenFab.setOnClickListener {
-            revealControls()
             presenter.onFullscreenShortcutRequested()
         }
         binding.refreshFab.setOnClickListener {
-            revealControls()
             presenter.onRefreshRequested()
         }
         binding.retryButton.setOnClickListener { presenter.onRetryRequested() }
         binding.errorSettingsButton.setOnClickListener { presenter.onSettingsRequested() }
-        binding.blankSearchButton.setOnClickListener { showSearchDialog() }
+        binding.searchFab.setOnClickListener { showSearchDialog() }
         binding.swipeRefresh.setOnChildScrollUpCallback { _, _ -> webView.canScrollVertically(-1) }
         binding.swipeRefresh.setOnRefreshListener { presenter.onRefreshRequested() }
         webView.setOnTouchListener { view, event ->
-            if (event.actionMasked != MotionEvent.ACTION_CANCEL) {
-                revealControls()
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    initialPinchSpan = 0f
+                    pinchRevealTriggered = false
+                }
+                MotionEvent.ACTION_POINTER_DOWN -> if (event.pointerCount >= 2) {
+                    initialPinchSpan = event.pinchSpan()
+                }
+                MotionEvent.ACTION_MOVE -> if (
+                    event.pointerCount >= 2 &&
+                    initialPinchSpan > 0f &&
+                    !pinchRevealTriggered &&
+                    kotlin.math.abs(event.pinchSpan() - initialPinchSpan) >= PINCH_REVEAL_DISTANCE_DP.dp
+                ) {
+                    pinchRevealTriggered = true
+                    revealControls()
+                }
+                MotionEvent.ACTION_UP,
+                MotionEvent.ACTION_CANCEL,
+                -> {
+                    initialPinchSpan = 0f
+                    pinchRevealTriggered = false
+                }
             }
             if (event.actionMasked == MotionEvent.ACTION_UP) {
                 view.performClick()
@@ -152,7 +172,7 @@ class MainActivity : AppCompatActivity(), BrowserContract.View {
         })
 
         presenter.attach(this, restoredWebViewState, fallbackUrl)
-        revealControls()
+        hideControlsImmediately()
     }
 
     override fun onDestroy() {
@@ -188,7 +208,7 @@ class MainActivity : AppCompatActivity(), BrowserContract.View {
 
     override fun loadUrl(url: String) {
         hideError()
-        binding.blankHomeOverlay.isVisible = false
+        binding.searchFab.isVisible = false
         webView.loadUrl(url)
     }
 
@@ -200,7 +220,7 @@ class MainActivity : AppCompatActivity(), BrowserContract.View {
         binding.loadingStatus.isVisible = false
         binding.pageProgress.isVisible = false
         binding.errorOverlay.isVisible = false
-        binding.blankHomeOverlay.isVisible = true
+        binding.searchFab.isVisible = true
     }
 
     override fun showSettings(settings: BrowserSettings, required: Boolean) {
@@ -226,7 +246,6 @@ class MainActivity : AppCompatActivity(), BrowserContract.View {
         settingsDialogBinding = dialogBinding
         dialog.setOnDismissListener {
             applyFullscreen(this.settings.fullscreenEnabled)
-            revealControls()
             settingsDialogBinding = null
         }
         dialog.setOnShowListener {
@@ -326,10 +345,9 @@ class MainActivity : AppCompatActivity(), BrowserContract.View {
     }
 
     override fun showError(message: String) {
-        revealControls()
         binding.swipeRefresh.isRefreshing = false
         binding.loadingStatus.isVisible = false
-        binding.blankHomeOverlay.isVisible = false
+        binding.searchFab.isVisible = false
         binding.errorMessage.text = message
         binding.errorOverlay.isVisible = true
     }
@@ -365,7 +383,7 @@ class MainActivity : AppCompatActivity(), BrowserContract.View {
         super.onResume()
         webView.onResume()
         applyFullscreen(settings.fullscreenEnabled)
-        revealControls()
+        hideControlsImmediately()
     }
 
     override fun onPause() {
@@ -374,7 +392,6 @@ class MainActivity : AppCompatActivity(), BrowserContract.View {
     }
 
     private fun showSystemBars() {
-        revealControls()
         WindowInsetsControllerCompat(window, binding.root).show(WindowInsetsCompat.Type.systemBars())
     }
 
@@ -480,6 +497,20 @@ class MainActivity : AppCompatActivity(), BrowserContract.View {
         binding.actionButtons.isVisible = true
         binding.actionButtons.alpha = 1f
         controlsHandler.postDelayed(hideControlsRunnable, CONTROLS_HIDE_DELAY_MS)
+    }
+
+    private fun hideControlsImmediately() {
+        controlsHandler.removeCallbacks(hideControlsRunnable)
+        binding.actionButtons.animate().cancel()
+        binding.actionButtons.alpha = 0f
+        binding.actionButtons.isVisible = false
+    }
+
+    private fun MotionEvent.pinchSpan(): Float {
+        if (pointerCount < 2) return 0f
+        val deltaX = getX(0) - getX(1)
+        val deltaY = getY(0) - getY(1)
+        return kotlin.math.sqrt(deltaX * deltaX + deltaY * deltaY)
     }
 
     private fun applyContentInsets(insets: WindowInsetsCompat) {
@@ -784,6 +815,7 @@ class MainActivity : AppCompatActivity(), BrowserContract.View {
         const val KEY_CURRENT_URL = "current_url"
         const val CONTROLS_HIDE_DELAY_MS = 3_000L
         const val CONTROLS_ANIMATION_MS = 220L
+        const val PINCH_REVEAL_DISTANCE_DP = 24
         const val BACKGROUND_FILE_NAME = "custom_background_image"
     }
 }

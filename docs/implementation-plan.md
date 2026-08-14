@@ -68,7 +68,7 @@ The app supports pull-to-refresh and a refresh floating button. WebView progress
 
 ## 6.1 Interface language, theme, and controls
 
-All app interface text uses Chinese by default, including on devices whose system locale is English, and the settings dialog does not expose a language switch. A global light/dark theme switch persists through Preferences DataStore and applies the corresponding Material night mode and generated wallpaper. The settings and fullscreen floating buttons are revealed by page interaction and fade out after roughly three seconds without interaction.
+All app interface text uses Chinese by default, including on devices whose system locale is English, and the settings dialog does not expose a language switch. A global light/dark theme switch persists through Preferences DataStore and applies the corresponding Material night mode and generated wallpaper. The bottom-centered action row is hidden by default, revealed only after a two-finger pinch changes span, and fades out after roughly three seconds.
 
 ## 6.3 Favorites and blank home search
 
@@ -119,7 +119,7 @@ Test at minimum on API 26 and API 37, using current Android System WebView/Chrom
 - DNS, offline, HTTP 4xx/5xx, invalid certificate, Safe Browsing, and retry behavior.
 - Renderer termination and replacement.
 - Confirmation that camera/microphone/geolocation prompts are denied and non-HTTPS navigation is blocked.
-- Auto-hide/reveal behavior for floating controls.
+- Default-hidden controls, two-finger pinch reveal, bottom-centered action row, and automatic fade-out.
 - Chinese interface and light/dark theme persistence, including wallpaper changes.
 - Same-site navigation, external link handling, download, upload, refresh, and loading-state behavior.
 - Custom background persistence, data clearing, and process/configuration state recovery.
