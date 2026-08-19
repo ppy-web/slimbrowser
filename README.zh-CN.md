@@ -2,7 +2,7 @@
 
 中文说明
 
-SlimBrowser 是一款简洁、快速的单站点 Android 浏览器，使用 Kotlin、XML Views、ViewBinding、Android System WebView、AndroidX WebKit、Preferences DataStore 和轻量 MVP 结构构建。
+SlimBrowser 是一款面向个人使用的简洁、快速 Android 浏览器，围绕首页、浏览页和设置页三个场景，强调全屏、无干扰和隐私可控体验。项目使用 Kotlin、XML Views、ViewBinding、Android System WebView、AndroidX WebKit、Preferences DataStore 和轻量 MVP 结构构建。详细开发计划见 [`docs/development-plan.md`](docs/development-plan.md)，实时待办状态见 [`docs/TODO.md`](docs/TODO.md)。
 
 ## 技术环境
 
