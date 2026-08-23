@@ -1,0 +1,475 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/settingsScene"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/transparent">
+
+    <LinearLayout
+        android:id="@+id/settingsHeader"
+        android:layout_width="match_parent"
+        android:layout_height="64dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="8dp"
+        android:paddingEnd="16dp">
+
+        <androidx.appcompat.widget.AppCompatImageButton
+            android:id="@+id/settingsBackButton"
+            android:layout_width="@dimen/browser_touch_target"
+            android:layout_height="@dimen/browser_touch_target"
+            android:background="@drawable/glass_icon_ripple"
+            android:contentDescription="@string/go_back"
+            android:padding="12dp"
+            app:srcCompat="@drawable/ic_back"
+            app:tint="?attr/colorOnSurface" />
+
+        <TextView
+            style="@style/TextAppearance.Material3.HeadlineSmall"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:accessibilityHeading="true"
+            android:text="@string/settings" />
+    </LinearLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/settingsScroll"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginTop="64dp"
+        android:clipToPadding="false"
+        android:fillViewport="true"
+        android:overScrollMode="never"
+        android:paddingStart="16dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="48dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                style="@style/TextAppearance.Material3.TitleMedium"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_marginBottom="8dp"
+                android:text="@string/settings_browsing" />
+
+            <com.example.slimbrowser.ui.browser.LiquidGlassBar
+                android:id="@+id/browsingSettingsCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="18dp">
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/homeUrlLayout"
+                    style="@style/Widget.SlimBrowser.GlassTextInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="@string/home_url"
+                    app:helperText="@string/home_url_setting_hint">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/settingsHomeUrl"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:imeOptions="actionDone"
+                        android:inputType="textUri"
+                        android:maxLines="1" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/searchEngineLayout"
+                    style="@style/Widget.SlimBrowser.GlassTextInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:hint="@string/default_search_engine"
+                    app:endIconMode="dropdown_menu">
+
+                    <AutoCompleteTextView
+                        android:id="@+id/searchEngineInput"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:focusable="false"
+                        android:inputType="none" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <TextView
+                    style="@style/TextAppearance.Material3.LabelLarge"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="@string/startup_behavior" />
+
+                <RadioGroup
+                    android:id="@+id/startBehaviorGroup"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <com.google.android.material.radiobutton.MaterialRadioButton
+                        android:id="@+id/startHomeRadio"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/start_home" />
+
+                    <com.google.android.material.radiobutton.MaterialRadioButton
+                        android:id="@+id/startLastPageRadio"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/start_last_page" />
+
+                    <com.google.android.material.radiobutton.MaterialRadioButton
+                        android:id="@+id/startBlankRadio"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/start_blank" />
+                </RadioGroup>
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/fullscreenSwitch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/fullscreen" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/toolbarAutoHideSwitch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/toolbar_auto_hide" />
+
+                <TextView
+                    style="@style/TextAppearance.Material3.LabelLarge"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/toolbar_position" />
+
+                <RadioGroup
+                    android:id="@+id/toolbarPositionGroup"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.radiobutton.MaterialRadioButton
+                        android:id="@+id/toolbarBottomRadio"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/position_bottom" />
+
+                    <com.google.android.material.radiobutton.MaterialRadioButton
+                        android:id="@+id/toolbarTopRadio"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/position_top" />
+                </RadioGroup>
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/desktopModeSwitch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/default_desktop_mode" />
+
+                <TextView
+                    android:id="@+id/textZoomLabel"
+                    style="@style/TextAppearance.Material3.LabelLarge"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/text_zoom_default" />
+
+                <SeekBar
+                    android:id="@+id/textZoomSeekBar"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="100"
+                    android:progress="50" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/darkWebModeSwitch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/dark_web_mode" />
+            </com.example.slimbrowser.ui.browser.LiquidGlassBar>
+
+            <TextView
+                style="@style/TextAppearance.Material3.TitleMedium"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_marginTop="24dp"
+                android:layout_marginBottom="8dp"
+                android:text="@string/settings_appearance" />
+
+            <com.example.slimbrowser.ui.browser.LiquidGlassBar
+                android:id="@+id/appearanceSettingsCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="18dp">
+
+                <TextView
+                    style="@style/TextAppearance.Material3.LabelLarge"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/theme_mode" />
+
+                <RadioGroup
+                    android:id="@+id/themeModeGroup"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <com.google.android.material.radiobutton.MaterialRadioButton
+                        android:id="@+id/themeSystemRadio"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/theme_system" />
+
+                    <com.google.android.material.radiobutton.MaterialRadioButton
+                        android:id="@+id/themeLightRadio"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/theme_light" />
+
+                    <com.google.android.material.radiobutton.MaterialRadioButton
+                        android:id="@+id/themeDarkRadio"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/theme_dark" />
+                </RadioGroup>
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/reducedTransparencySwitch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/reduced_transparency" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/reduceMotionSwitch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/reduce_motion" />
+
+                <TextView
+                    android:id="@+id/backgroundStatus"
+                    style="@style/TextAppearance.Material3.BodyMedium"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/default_background" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/chooseBackgroundButton"
+                        style="@style/Widget.SlimBrowser.GlassButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/choose_background" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/clearBackgroundButton"
+                        style="@style/Widget.SlimBrowser.GlassButton.Subtle"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:layout_weight="1"
+                        android:text="@string/clear_background" />
+                </LinearLayout>
+            </com.example.slimbrowser.ui.browser.LiquidGlassBar>
+
+            <TextView
+                style="@style/TextAppearance.Material3.TitleMedium"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_marginTop="24dp"
+                android:layout_marginBottom="8dp"
+                android:text="@string/settings_privacy" />
+
+            <com.example.slimbrowser.ui.browser.LiquidGlassBar
+                android:id="@+id/privacySettingsCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="18dp">
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/allowLocalNetworkSwitch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/allow_local_network" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/privateModeSwitch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/private_mode" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/clearPrivateOnExitSwitch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/clear_private_on_exit" />
+
+                <TextView
+                    style="@style/TextAppearance.Material3.BodySmall"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/site_permission_policy" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/clearCacheButton"
+                    style="@style/Widget.SlimBrowser.GlassButton.Subtle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/clear_cache" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/clearCookiesButton"
+                    style="@style/Widget.SlimBrowser.GlassButton.Subtle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/clear_cookies" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/clearWebStorageButton"
+                    style="@style/Widget.SlimBrowser.GlassButton.Subtle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/clear_web_storage" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/clearHistoryButton"
+                    style="@style/Widget.SlimBrowser.GlassButton.Subtle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/clear_history" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/clearFormDataButton"
+                    style="@style/Widget.SlimBrowser.GlassButton.Subtle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/clear_form_data" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/clearAllDataButton"
+                    style="@style/Widget.SlimBrowser.GlassButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/clear_all_browsing_data" />
+            </com.example.slimbrowser.ui.browser.LiquidGlassBar>
+
+            <TextView
+                style="@style/TextAppearance.Material3.TitleMedium"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_marginTop="24dp"
+                android:layout_marginBottom="8dp"
+                android:text="@string/settings_data" />
+
+            <com.example.slimbrowser.ui.browser.LiquidGlassBar
+                android:id="@+id/dataSettingsCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="18dp">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/openHistoryButton"
+                    style="@style/Widget.SlimBrowser.GlassButton.Subtle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/browsing_history" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/openBookmarksButton"
+                    style="@style/Widget.SlimBrowser.GlassButton.Subtle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/bookmarks" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/openDownloadsButton"
+                    style="@style/Widget.SlimBrowser.GlassButton.Subtle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/downloads" />
+            </com.example.slimbrowser.ui.browser.LiquidGlassBar>
+
+            <TextView
+                style="@style/TextAppearance.Material3.TitleMedium"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_marginTop="24dp"
+                android:layout_marginBottom="8dp"
+                android:text="@string/settings_about" />
+
+            <com.example.slimbrowser.ui.browser.LiquidGlassBar
+                android:id="@+id/aboutSettingsCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="18dp">
+
+                <TextView
+                    android:id="@+id/versionInfo"
+                    style="@style/TextAppearance.Material3.BodyMedium"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/version_loading" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/privacyStatementButton"
+                    style="@style/Widget.SlimBrowser.GlassButton.Subtle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/privacy_and_trust" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/licensesButton"
+                    style="@style/Widget.SlimBrowser.GlassButton.Subtle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/open_source_licenses" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/exportDiagnosticsButton"
+                    style="@style/Widget.SlimBrowser.GlassButton.Subtle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/export_diagnostics" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/manualTestButton"
+                    style="@style/Widget.SlimBrowser.GlassButton.Subtle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/manual_test_tools" />
+            </com.example.slimbrowser.ui.browser.LiquidGlassBar>
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</FrameLayout>

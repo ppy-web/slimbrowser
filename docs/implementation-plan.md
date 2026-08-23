@@ -1,5 +1,7 @@
 # SlimBrowser implementation plan
 
+> 历史说明：本文记录 v1 单站点容器的实现基线，不再作为当前路线图。当前产品已转向个人轻量浏览器；正式开发范围、技术决策和实时进度分别以 [`development-plan.md`](development-plan.md) 与 [`TODO.md`](TODO.md) 为准。
+
 ## 1. Scope and fixed decisions
 
 The application is a single-activity, single-WebView shell for a user-configured HTTPS home URL. It uses Kotlin source, XML layouts, ViewBinding, Android System WebView through AndroidX WebKit compatibility APIs, Preferences DataStore, and MVP separation. The fixed build matrix is minSdk 26, compileSdk/targetSdk 37, AGP 9.3.0 built-in Kotlin, Gradle 9.5.0, and Java 17 bytecode compatibility.

@@ -1,6 +1,6 @@
 # SlimBrowser
 
-SlimBrowser 是一款简洁的单站点 Android 浏览器，使用 Kotlin、XML Views、ViewBinding、Android System WebView、AndroidX WebKit、Preferences DataStore 和轻量 MVP 结构构建。
+SlimBrowser 是一款面向个人使用的简洁、快速 Android 浏览器，围绕首页、浏览页和设置页三个场景，强调全屏、无干扰和隐私可控体验。项目使用 Kotlin、XML Views、ViewBinding、Android System WebView、AndroidX WebKit、Preferences DataStore 和轻量 MVP 结构构建。详细开发计划见 [`docs/development-plan.md`](docs/development-plan.md)，实时待办状态见 [`docs/TODO.md`](docs/TODO.md)。
 
 ## 技术环境
 
@@ -35,15 +35,15 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 ## 功能特性
 
 - 首次启动读取 Preferences DataStore；首页网址可以留空，留空时在透明背景上以四列圆形按钮宫格显示收藏的网站，不再强制弹出设置对话框。
-- 未填写协议的网址会自动补充 `https://`；留空时显示收藏页，底部搜索入口使用百度。非 HTTPS 协议、嵌入式账号密码、非法主机名和非法端口会被拒绝。
+- 未填写协议的网址会自动补充 `https://`；用户显式输入的 HTTP、私网、`file:`、`content:`、`data:`、`blob:` 和自定义 URI 都会尽力打开；WebView 不支持的协议会尝试交给系统处理器。
 - 设置页可以修改首页网址、全屏状态和亮暗主题，所有设置都会持久化。
 - 设置页支持选择自定义背景图片、恢复主题背景和清除 Cookie、缓存及历史数据。
 - 设置页支持收藏当前页面、打开收藏列表，并可逐项打开或删除收藏。
 - 所有应用内界面文字默认使用中文，不提供语言切换选项。
 - 设置和全屏悬浮按钮无操作约 3 秒后自动隐藏，触摸网页后重新显示。
 - 支持下拉刷新和刷新悬浮按钮，页面加载时显示进度状态。
-- 支持同站点及子域名导航，外部电话、短信、邮件和 Intent 链接交给系统处理。
-- 支持网页文件上传和同站点 HTTPS 文件下载。
+- 支持任意站点导航，电话、短信、邮件、地图、商店、Intent 和未知协议在用户点击或输入后尝试交给系统处理。
+- 支持网页文件上传和 HTTP/HTTPS 文件下载。
 - 支持沉浸式全屏，边缘滑动可以临时显示系统栏。
 - 返回键优先回退 WebView 浏览历史，没有历史时退出 Activity。
 - Activity 重建时保存并恢复 WebView 页面状态和历史记录。
@@ -56,15 +56,15 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 - `ui/browser/BrowserContract.kt`：MVP 接口定义。
 - `ui/browser/BrowserPresenter.kt`：启动设置读取、导航决策、全屏和主题同步、持久化操作。
 - `data/BrowserPreferences.kt`：Preferences DataStore 仓库。
-- `domain/UrlPolicy.kt`：可进行 JVM 单元测试的 HTTPS URL 规范化和校验逻辑。
+- `domain/UrlPolicy.kt`：可进行 JVM 单元测试的严格 HTTPS 规范化与宽松 URI 导航规范化逻辑。
 
 ## 安全策略
 
-- Manifest 中设置 `android:usesCleartextTraffic="false"`，禁止明文网络流量。
-- 主页面导航只接受 HTTPS。
+- Manifest 允许明文流量，以支持用户显式打开 HTTP 地址。
+- 主页面优先由 WebView 打开任意合法 URI；自定义协议由系统应用尽力处理。
 - TLS 证书错误始终取消，不调用 `SslErrorHandler.proceed()`。
 - 在系统 WebView 支持时启用 Safe Browsing。
-- 禁止 Mixed Content、文件访问、Content URI 访问、文件 URL 跨域访问、地理位置、多窗口和自动 JavaScript 弹窗。
+- 允许兼容性 Mixed Content、文件和 Content URI，以提高旧站点和本地内容的可用性；仍禁止文件 URL 跨域访问、地理位置、多窗口和自动 JavaScript 弹窗。
 - 拒绝网页的相机、麦克风等 Web 权限请求。
 - 禁用第三方 Cookie，不暴露 JavaScript Bridge。
 - 显式处理 WebView 渲染进程终止。
@@ -73,13 +73,13 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 ## 测试
 
-`UrlPolicyTest` 是 JVM 本地测试，覆盖协议补充、主机名规范化、国际化域名、HTTPS 强制校验、端口和凭据校验、格式错误及控制字符。
+`UrlPolicyTest` 是 JVM 本地测试，覆盖协议补充、主机名规范化、国际化域名、严格 HTTPS 规范化与宽松 URI 导航。
 
 建议手工测试：
 
 1. 全新安装后确认显示收藏页；在设置页保存一个 HTTPS 网址后确认可正常打开。
 2. 输入 `example.com`，确认保存并加载 `https://example.com/`。
-3. 输入 HTTP、`file:`、`javascript:`、带账号密码或非法端口的网址，确认校验失败。
+3. 输入 HTTP、`file:`、`data:`、`javascript:`、带账号密码或自定义协议的网址，确认浏览器或系统处理器会尽力打开。
 4. 在中文系统和英文系统上分别启动，确认应用内界面均使用中文且设置页没有语言切换按钮；切换亮色/暗色主题并重启，确认主题状态保持。
 5. 停止操作约 3 秒，确认设置和全屏按钮隐藏；触摸网页后确认重新显示。
 6. 在收藏首页点击已收藏的网站，或点击底部搜索图标输入关键词后确认跳转百度；在网页设置中收藏当前页面，再从收藏列表打开和删除。
@@ -92,6 +92,6 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 - [ ] 使用 AGP 9.3.0、Gradle 9.5.0 和 JDK 17+ 成功完成 Gradle 同步。
 - [ ] `testDebugUnitTest` 通过。
 - [ ] `assembleDebug` 成功生成 APK。
-- [ ] 在 API 26 和 API 37 设备或模拟器上完成首次启动、HTTPS 限制、配置持久化、全屏、主题、错误页、返回历史、状态恢复和渲染进程恢复测试。
+- [ ] 在 API 26 和 API 37 设备或模拟器上完成首次启动、协议兼容、配置持久化、全屏、主题、错误页、返回历史、状态恢复和渲染进程恢复测试。
 
 详细实现方案请参阅 [`docs/implementation-plan.md`](docs/implementation-plan.md)。
