@@ -81,5 +81,81 @@ class BrowserStateMachineTest {
         assertTrue(state.canGoBack)
         assertFalse(state.canGoForward)
         assertEquals("Final page", state.title)
+        assertEquals("https://example.com/final", state.lastCommittedUrl)
+    }
+
+    @Test
+    fun rendererRecoveryUsesLastSuccessfullyCommittedUrl() {
+        val machine = BrowserStateMachine()
+        val committed = machine.navigationStarted("https://example.com/good", "example.com")
+        machine.navigationFinished(
+            committed,
+            "https://example.com/good",
+            "example.com",
+            "Good page",
+            canGoBack = false,
+            canGoForward = false,
+        )
+
+        machine.navigationStarted("https://example.com/loading", "example.com")
+        machine.rendererGone(BrowserError.RendererGone)
+
+        assertEquals("https://example.com/loading", machine.state.url)
+        assertEquals(
+            "https://example.com/good",
+            machine.state.recoveryUrl("https://fallback.example/"),
+        )
+    }
+
+    @Test
+    fun startingANewNavigationClearsThePreviousPageFavicon() {
+        val machine = BrowserStateMachine()
+        val first = machine.navigationStarted("https://one.example/", "one.example")
+        machine.faviconChanged(first, "file:///one.png")
+        assertEquals("file:///one.png", machine.state.faviconPath)
+
+        machine.navigationStarted("https://two.example/", "two.example")
+
+        assertNull(machine.state.faviconPath)
+    }
+
+    @Test
+    fun restoringSettingsPreservesItsValidatedReturnScene() {
+        val machine = BrowserStateMachine()
+
+        val restored = machine.restoreScene(
+            scene = AppScene.SETTINGS,
+            previousScene = AppScene.BROWSER,
+            browserUrl = "https://example.com/restored",
+        )
+
+        assertEquals(AppScene.SETTINGS, restored.scene)
+        assertEquals(AppScene.BROWSER, restored.previousScene)
+        assertEquals("https://example.com/restored", restored.url)
+        assertEquals(BackDecision.LeaveSettings(AppScene.BROWSER), machine.backDecision())
+
+        machine.restoreScene(AppScene.SETTINGS, AppScene.SETTINGS)
+        assertEquals(AppScene.HOME, machine.state.previousScene)
+    }
+
+    @Test
+    fun failedPageIsNotRecordedAsCommittedRecoveryTarget() {
+        val machine = BrowserStateMachine()
+        val navigationId = machine.navigationStarted("https://broken.example/", "broken.example")
+        machine.navigationFailed(navigationId, BrowserError.Http(500))
+        machine.navigationFinished(
+            navigationId,
+            "https://broken.example/",
+            "broken.example",
+            "Server error",
+            canGoBack = false,
+            canGoForward = false,
+        )
+
+        assertEquals("", machine.state.lastCommittedUrl)
+        assertEquals(
+            "https://fallback.example/",
+            machine.state.recoveryUrl("https://fallback.example/"),
+        )
     }
 }

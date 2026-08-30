@@ -1,5 +1,6 @@
 package com.example.slimbrowser.ui.browser
 
+import android.animation.ValueAnimator
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -78,15 +79,17 @@ import com.example.slimbrowser.ui.library.history.HistoryListController
 import com.example.slimbrowser.ui.state.AppScene
 import com.example.slimbrowser.ui.state.BackDecision
 import com.example.slimbrowser.ui.state.BrowserStateMachine
+import com.example.slimbrowser.ui.state.MotionPolicy
 import com.example.slimbrowser.ui.state.ToolbarEvent
 import com.example.slimbrowser.ui.state.ToolbarVisibility
 import com.example.slimbrowser.ui.state.ToolbarVisibilityController
-import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import java.io.File
 import java.io.FileOutputStream
 import java.security.MessageDigest
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -125,6 +128,7 @@ class MainActivity : AppCompatActivity(), BrowserWebViewController.Listener, Set
     private var errorPrimaryAction = BrowserErrorAction.NONE
     private var errorSecondaryAction = BrowserErrorAction.NONE
     private var diagnosticsText: String? = null
+    private var renderedScene: AppScene? = null
 
     private val backgroundPicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -184,12 +188,63 @@ class MainActivity : AppCompatActivity(), BrowserWebViewController.Listener, Set
             LegacyFavoritesMigrator(preferences, bookmarks).migrateIfNeeded()
             applySettings(settings)
             val restored = savedInstanceState?.getBundle(KEY_WEB_STATE)?.let(web::restoreState) == true
-            if (restored) state.showBrowser(web.webView.url.orEmpty()) else openStartupPage()
+            restoreSavedScene(savedInstanceState, restored)
             render()
         }
     }
 
+    private fun restoreSavedScene(savedInstanceState: Bundle?, webViewRestored: Boolean) {
+        val savedScene = savedInstanceState.enumValueOrNull<AppScene>(KEY_APP_SCENE)
+        val savedPreviousScene = savedInstanceState.enumValueOrNull<AppScene>(KEY_PREVIOUS_SCENE)
+            ?: AppScene.HOME
+        val restoredUrl = web.webView.url.orEmpty()
+        when {
+            savedScene == AppScene.HOME -> state.restoreScene(AppScene.HOME, AppScene.HOME, restoredUrl)
+            savedScene == AppScene.SETTINGS -> {
+                val restoredPreviousScene = if (
+                    savedPreviousScene == AppScene.BROWSER && !webViewRestored
+                ) AppScene.HOME else savedPreviousScene
+                state.restoreScene(
+                    scene = AppScene.SETTINGS,
+                    previousScene = restoredPreviousScene,
+                    browserUrl = restoredUrl,
+                )
+                if (webViewRestored && restoredPreviousScene == AppScene.BROWSER) {
+                    synchronizeRestoredWebState()
+                }
+            }
+            savedScene == AppScene.BROWSER && webViewRestored -> {
+                state.restoreScene(AppScene.BROWSER, AppScene.BROWSER, restoredUrl)
+                synchronizeRestoredWebState()
+            }
+            savedScene == AppScene.BROWSER -> openUrl(
+                session.lastSafeUrl.ifBlank { settings.homeUrl },
+                NavigationSource.RESTORE,
+            )
+            webViewRestored -> {
+                state.showBrowser(restoredUrl)
+                synchronizeRestoredWebState()
+            }
+            else -> openStartupPage()
+        }
+    }
+
+    private fun synchronizeRestoredWebState() {
+        val restoredUrl = web.webView.url.orEmpty()
+        if (restoredUrl.isBlank()) return
+        state.historyChanged(
+            navigationId = state.state.navigationId,
+            url = restoredUrl,
+            displayHost = UrlPolicy.hostOf(restoredUrl).orEmpty(),
+            canGoBack = web.canGoBack(),
+            canGoForward = web.canGoForward(),
+        )
+        state.titleChanged(state.state.navigationId, web.webView.title.orEmpty())
+    }
+
     private fun configureViews() {
+        ViewCompat.setAccessibilityHeading(settingsView.settingsTitle, true)
+        ViewCompat.setAccessibilityHeading(browser.errorTitle, true)
         home.homeSearchSurface.setBackdropSource(binding.themeWallpaper)
         browser.browserToolbar.setBackdropSource(web.webView)
         browser.findBar.setBackdropSource(web.webView)
@@ -317,10 +372,13 @@ class MainActivity : AppCompatActivity(), BrowserWebViewController.Listener, Set
 
     private fun render() {
         val current = state.state
+        val sceneChanged = renderedScene != current.scene
         binding.homeContainer.isVisible = customView == null && current.scene == AppScene.HOME
         binding.browserContainer.isVisible = customView == null && current.scene == AppScene.BROWSER
         binding.settingsContainer.isVisible = customView == null && current.scene == AppScene.SETTINGS
-        browser.pageProgress.progress = current.progress
+        if (sceneChanged) animateSceneEntry(current.scene)
+        renderedScene = current.scene
+        browser.pageProgress.setProgress(current.progress, !shouldReduceMotion())
         browser.pageProgress.isVisible = current.isLoading && current.progress in 1..99
         browser.loadingStatus.isVisible = current.isLoading
         browser.swipeRefresh.isRefreshing = current.isLoading && current.progress == 0
@@ -331,36 +389,43 @@ class MainActivity : AppCompatActivity(), BrowserWebViewController.Listener, Set
         browser.securityIcon.isVisible = current.isSecure
         renderError(current.error)
         renderToolbar(current.toolbarVisibility)
-        settingsController.render(settings)
-        renderHome()
+        when (current.scene) {
+            AppScene.HOME -> renderHome()
+            AppScene.SETTINGS -> settingsController.render(settings)
+            AppScene.BROWSER -> Unit
+        }
     }
 
     private fun renderHome() {
-        if (!::home.isInitialized) return
+        if (!::home.isInitialized || state.state.scene != AppScene.HOME) return
         home.continueButton.isVisible = session.lastSafeUrl.isNotBlank()
         home.pinnedTitle.isVisible = pinned.isNotEmpty()
         home.pinnedGrid.removeAllViews()
         pinned.forEach { bookmark ->
-            home.pinnedGrid.addView(MaterialButton(this).apply {
+            val shortcut = layoutInflater.inflate(
+                R.layout.item_home_pinned,
+                home.pinnedGrid,
+                false,
+            ) as com.google.android.material.button.MaterialButton
+            home.pinnedGrid.addView(shortcut.apply {
                 text = bookmark.title
-                isAllCaps = false
                 setOnClickListener { openUrl(bookmark.url) }
-                layoutParams = android.widget.GridLayout.LayoutParams().apply {
-                    width = 0
+                layoutParams = (layoutParams as android.widget.GridLayout.LayoutParams).apply {
                     columnSpec = android.widget.GridLayout.spec(android.widget.GridLayout.UNDEFINED, 1f)
-                    setMargins(4.dp, 4.dp, 4.dp, 4.dp)
                 }
             })
         }
         home.recentTitle.isVisible = recent.isNotEmpty()
         home.recentList.removeAllViews()
         recent.forEach { item ->
-            home.recentList.addView(MaterialButton(this).apply {
+            val recentButton = layoutInflater.inflate(
+                R.layout.item_home_recent,
+                home.recentList,
+                false,
+            ) as com.google.android.material.button.MaterialButton
+            home.recentList.addView(recentButton.apply {
                 text = item.title.ifBlank { item.host }
-                gravity = Gravity.START
-                isAllCaps = false
                 setOnClickListener { openUrl(item.url) }
-                layoutParams = ViewGroup.MarginLayoutParams(-1, -2).apply { bottomMargin = 4.dp }
             })
         }
         home.homeEmptyState.isVisible = pinned.isEmpty() && recent.isEmpty()
@@ -417,14 +482,44 @@ class MainActivity : AppCompatActivity(), BrowserWebViewController.Listener, Set
     private fun renderToolbar(visibility: ToolbarVisibility) {
         browser.toolbarRevealHandle.isVisible = visibility != ToolbarVisibility.VISIBLE
         val hidden = if (settings.toolbarPosition == ToolbarPosition.BOTTOM) 120.dp.toFloat() else -120.dp.toFloat()
-        browser.browserToolbar.animate().translationY(
-            when (visibility) {
-                ToolbarVisibility.VISIBLE -> 0f
-                ToolbarVisibility.COLLAPSED -> hidden * .55f
-                ToolbarVisibility.HIDDEN -> hidden
-            },
-        ).setDuration(if (settings.reduceMotion) 0 else 180).start()
+        val targetTranslation = when (visibility) {
+            ToolbarVisibility.VISIBLE -> 0f
+            ToolbarVisibility.COLLAPSED -> hidden * .55f
+            ToolbarVisibility.HIDDEN -> hidden
+        }
+        browser.browserToolbar.animate().cancel()
+        if (shouldReduceMotion()) {
+            browser.browserToolbar.translationY = targetTranslation
+        } else {
+            browser.browserToolbar.animate()
+                .translationY(targetTranslation)
+                .setDuration(TOOLBAR_ANIMATION_MILLIS)
+                .start()
+        }
     }
+
+    private fun animateSceneEntry(scene: AppScene) {
+        val target = when (scene) {
+            AppScene.HOME -> binding.homeContainer
+            AppScene.BROWSER -> binding.browserContainer
+            AppScene.SETTINGS -> binding.settingsContainer
+        }
+        target.animate().cancel()
+        if (shouldReduceMotion()) {
+            target.alpha = 1f
+            return
+        }
+        target.alpha = 0f
+        target.animate()
+            .alpha(1f)
+            .setDuration(SCENE_FADE_MILLIS)
+            .start()
+    }
+
+    private fun shouldReduceMotion(): Boolean = MotionPolicy.shouldReduce(
+        userPreference = settings.reduceMotion,
+        systemAnimatorsEnabled = ValueAnimator.areAnimatorsEnabled(),
+    )
 
     private fun editAddress(editing: Boolean) {
         browser.toolbarCompactRow.isVisible = !editing
@@ -434,7 +529,7 @@ class MainActivity : AppCompatActivity(), BrowserWebViewController.Listener, Set
             browser.addressInput.setText(state.state.url)
             browser.addressInput.requestFocus()
             browser.addressInput.selectAll()
-            getSystemService<InputMethodManager>()?.showSoftInput(browser.addressInput, InputMethodManager.SHOW_IMPLICIT)
+            getSystemService<InputMethodManager>()?.showSoftInput(browser.addressInput, 0)
         } else hideKeyboard()
     }
 
@@ -445,7 +540,12 @@ class MainActivity : AppCompatActivity(), BrowserWebViewController.Listener, Set
     }
 
     private fun retry() {
-        val url = state.state.url.ifBlank { session.lastSafeUrl.ifBlank { settings.homeUrl } }
+        val fallbackUrl = session.lastSafeUrl.ifBlank { settings.homeUrl }
+        val url = if (state.state.error == BrowserError.RendererGone) {
+            state.state.recoveryUrl(fallbackUrl)
+        } else {
+            state.state.url.ifBlank { fallbackUrl }
+        }
         openUrl(url, NavigationSource.RESTORE)
     }
 
@@ -501,7 +601,17 @@ class MainActivity : AppCompatActivity(), BrowserWebViewController.Listener, Set
         value.backgroundUri?.let { binding.themeWallpaper.setImageURI(Uri.parse(it)) }
         web.applySettings(value)
         state.desktopModeChanged(value.desktopModeDefault)
-        listOf(home.homeSearchSurface, browser.browserToolbar, browser.findBar, browser.errorCard).forEach {
+        listOf(
+            home.homeSearchSurface,
+            browser.browserToolbar,
+            browser.findBar,
+            browser.errorCard,
+            settingsView.browsingSettingsCard,
+            settingsView.appearanceSettingsCard,
+            settingsView.privacySettingsCard,
+            settingsView.dataSettingsCard,
+            settingsView.aboutSettingsCard,
+        ).forEach {
             it.setReducedTransparency(value.reducedTransparency)
         }
         val controller = WindowInsetsControllerCompat(window, binding.root)
@@ -533,19 +643,21 @@ class MainActivity : AppCompatActivity(), BrowserWebViewController.Listener, Set
     }
     override fun onProgressChanged(navigationId: Long, progress: Int) { state.progressChanged(navigationId, progress); render() }
     override fun onTitleChanged(navigationId: Long, title: String) { state.titleChanged(navigationId, title); render() }
-    override fun onFaviconChanged(navigationId: Long, icon: Bitmap?) {
+    override fun onFaviconChanged(navigationId: Long, pageUrl: String, icon: Bitmap?) {
         if (icon == null || settings.privateMode) {
             state.faviconChanged(navigationId, null)
             render()
             return
         }
-        val url = state.state.url
-        if (url.isBlank()) return
+        val url = UrlPolicy.normalizeForNavigation(pageUrl) ?: return
+        if (navigationId != state.state.navigationId ||
+            UrlPolicy.normalizeForNavigation(state.state.url) != url
+        ) return
         lifecycleScope.launch {
             val faviconUri = persistFavicon(url, icon)
             state.faviconChanged(navigationId, faviconUri)
             if (faviconUri != null && navigationId == state.state.navigationId) {
-                history.updateFavicon(state.state.url, faviconUri)
+                history.updateFavicon(url, faviconUri)
             }
             render()
         }
@@ -778,15 +890,39 @@ class MainActivity : AppCompatActivity(), BrowserWebViewController.Listener, Set
                 .joinToString("") { "%02x".format(it) }
             val directory = File(filesDir, "favicons").also(File::mkdirs)
             val target = File(directory, "$hash.png")
-            val temporary = File(directory, "$hash.tmp")
-            FileOutputStream(temporary).use { output ->
-                check(icon.compress(Bitmap.CompressFormat.PNG, 100, output))
+            val temporary = File.createTempFile("$hash-", ".tmp", directory)
+            try {
+                FileOutputStream(temporary).use { output ->
+                    check(icon.compress(Bitmap.CompressFormat.PNG, 100, output))
+                }
+                runCatching {
+                    Files.move(
+                        temporary.toPath(),
+                        target.toPath(),
+                        StandardCopyOption.ATOMIC_MOVE,
+                        StandardCopyOption.REPLACE_EXISTING,
+                    )
+                }.getOrElse {
+                    Files.move(
+                        temporary.toPath(),
+                        target.toPath(),
+                        StandardCopyOption.REPLACE_EXISTING,
+                    )
+                }
+                Uri.fromFile(target).toString()
+            } finally {
+                temporary.delete()
             }
-            check(temporary.renameTo(target))
-            Uri.fromFile(target).toString()
         }.getOrNull()
     }
-    override fun onSaveInstanceState(outState: Bundle) { Bundle().also { if (web.saveState(it)) outState.putBundle(KEY_WEB_STATE, it) }; super.onSaveInstanceState(outState) }
+    override fun onSaveInstanceState(outState: Bundle) {
+        Bundle().also { webState ->
+            if (web.saveState(webState)) outState.putBundle(KEY_WEB_STATE, webState)
+        }
+        outState.putString(KEY_APP_SCENE, state.state.scene.name)
+        outState.putString(KEY_PREVIOUS_SCENE, state.state.previousScene.name)
+        super.onSaveInstanceState(outState)
+    }
     override fun onResume() { super.onResume(); web.onResume() }
     override fun onPause() { web.onPause(); super.onPause() }
     override fun onStop() {
@@ -811,6 +947,13 @@ class MainActivity : AppCompatActivity(), BrowserWebViewController.Listener, Set
     override fun onConfigurationChanged(newConfig: Configuration) { super.onConfigurationChanged(newConfig); applySettings(settings) }
     private companion object {
         const val KEY_WEB_STATE = "web_state"
+        const val KEY_APP_SCENE = "app_scene"
+        const val KEY_PREVIOUS_SCENE = "previous_scene"
         const val LOCAL_TEST_PAGE_URL = "file:///android_asset/slimbrowser-test.html"
+        const val TOOLBAR_ANIMATION_MILLIS = 180L
+        const val SCENE_FADE_MILLIS = 140L
     }
 }
+
+private inline fun <reified T : Enum<T>> Bundle?.enumValueOrNull(key: String): T? =
+    this?.getString(key)?.let { value -> enumValues<T>().firstOrNull { it.name == value } }

@@ -2,6 +2,7 @@ package com.example.slimbrowser.ui.browser.actions
 
 import android.content.Context
 import android.view.LayoutInflater
+import androidx.core.view.ViewCompat
 import androidx.recyclerview.widget.GridLayoutManager
 import com.example.slimbrowser.databinding.BottomSheetBrowserActionsBinding
 import com.google.android.material.bottomsheet.BottomSheetDialog
@@ -25,6 +26,7 @@ class BrowserMoreActionsBottomSheet(
     }
 
     init {
+        ViewCompat.setAccessibilityHeading(binding.moreActionsTitle, true)
         binding.moreActionsList.layoutManager = GridLayoutManager(context, COLUMN_COUNT)
         binding.moreActionsList.adapter = adapter
         dialog.setContentView(binding.root)

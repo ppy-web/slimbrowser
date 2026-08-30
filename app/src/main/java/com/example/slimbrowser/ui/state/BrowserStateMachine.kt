@@ -31,6 +31,30 @@ class BrowserStateMachine(initialState: BrowserUiState = BrowserUiState()) {
         )
     }
 
+    /** Restores scene navigation independently of whether WebView state restoration succeeded. */
+    fun restoreScene(
+        scene: AppScene,
+        previousScene: AppScene,
+        browserUrl: String = state.url,
+    ): BrowserUiState = update {
+        val safePreviousScene = previousScene.takeUnless { it == AppScene.SETTINGS }
+            ?: AppScene.HOME
+        copy(
+            scene = scene,
+            previousScene = if (scene == AppScene.SETTINGS) safePreviousScene else scene,
+            url = browserUrl,
+            displayHost = "",
+            title = "",
+            faviconPath = null,
+            progress = 0,
+            isLoading = false,
+            canGoBack = false,
+            canGoForward = false,
+            toolbarVisibility = ToolbarVisibility.VISIBLE,
+            error = null,
+        )
+    }
+
     fun showBrowser(url: String = state.url): BrowserUiState = update {
         copy(
             scene = AppScene.BROWSER,
@@ -72,6 +96,7 @@ class BrowserStateMachine(initialState: BrowserUiState = BrowserUiState()) {
                 scene = AppScene.BROWSER,
                 url = url,
                 displayHost = displayHost,
+                faviconPath = null,
                 progress = 0,
                 isLoading = true,
                 toolbarVisibility = ToolbarVisibility.VISIBLE,
@@ -125,6 +150,7 @@ class BrowserStateMachine(initialState: BrowserUiState = BrowserUiState()) {
     ): BrowserUiState = updateIfCurrent(navigationId) {
         copy(
             url = url,
+            lastCommittedUrl = if (error == null) url else lastCommittedUrl,
             displayHost = displayHost,
             title = title.trim().take(MAX_TITLE_LENGTH),
             progress = 100,

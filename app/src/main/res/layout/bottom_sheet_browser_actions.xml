@@ -16,11 +16,11 @@
         android:importantForAccessibility="no" />
 
     <TextView
+        android:id="@+id/moreActionsTitle"
         style="@style/TextAppearance.Material3.TitleLarge"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:accessibilityHeading="true"
         android:text="@string/more_actions" />
 
     <androidx.recyclerview.widget.RecyclerView

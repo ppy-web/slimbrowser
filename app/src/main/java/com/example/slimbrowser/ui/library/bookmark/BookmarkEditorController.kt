@@ -1,5 +1,6 @@
 package com.example.slimbrowser.ui.library.bookmark
 
+import androidx.core.view.ViewCompat
 import androidx.core.widget.doAfterTextChanged
 import com.example.slimbrowser.R
 import com.example.slimbrowser.data.bookmark.BookmarkEntity
@@ -27,6 +28,7 @@ class BookmarkEditorController(
     private var original: BookmarkEntity? = null
 
     init {
+        ViewCompat.setAccessibilityHeading(binding.bookmarkEditorTitle, true)
         binding.bookmarkTitleInput.doAfterTextChanged { binding.bookmarkTitleLayout.error = null }
         binding.bookmarkUrlInput.doAfterTextChanged { binding.bookmarkUrlLayout.error = null }
         binding.cancelBookmarkEditButton.setOnClickListener { callbacks.onCancelRequested() }

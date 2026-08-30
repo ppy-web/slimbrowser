@@ -22,7 +22,11 @@ class RepositoryBehaviorTest {
         var now = 100L
         val repository = HistoryRepository(dao) { now++ }
 
-        val firstId = repository.recordVisit("https://example.com/", "First")
+        val firstId = repository.recordVisit(
+            "https://example.com/",
+            "First",
+            faviconUri = "file:///first-favicon.png",
+        )
         val secondId = repository.recordVisit("https://example.com/", "Updated")
         repeat(7) { index ->
             repository.recordVisit("https://example$index.com/", "Site $index")
@@ -31,6 +35,7 @@ class RepositoryBehaviorTest {
         assertEquals(firstId, secondId)
         assertEquals(2, dao.getByUrl("https://example.com/")?.visitCount)
         assertEquals("Updated", dao.getByUrl("https://example.com/")?.title)
+        assertEquals("file:///first-favicon.png", dao.getByUrl("https://example.com/")?.faviconUri)
         assertTrue(repository.updateFavicon("https://example.com/", "file:///favicon.png"))
         assertEquals("file:///favicon.png", dao.getByUrl("https://example.com/")?.faviconUri)
         assertEquals(6, repository.observeRecent().first().size)
@@ -108,7 +113,7 @@ private class FakeHistoryDao : HistoryDao() {
         rows[existing.id] = existing.copy(
             title = title,
             host = host,
-            faviconUri = faviconUri,
+            faviconUri = faviconUri ?: existing.faviconUri,
             visitedAt = visitedAt,
             visitCount = existing.visitCount + 1,
         )

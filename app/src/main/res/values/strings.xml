@@ -11,7 +11,7 @@
     <string name="dark_theme">暗色主题</string>
     <string name="save">保存</string>
     <string name="cancel">取消</string>
-    <string name="invalid_url">请输入有效的公共 HTTPS 地址。</string>
+    <string name="invalid_url">请输入有效的网址或 URI。</string>
     <string name="no_external_app">没有可打开此链接的应用。</string>
     <string name="error_title">页面不可用</string>
     <string name="error_message_default">页面加载失败。</string>
@@ -65,7 +65,7 @@
     <string name="find_next">下一个匹配项</string>
     <string name="find_no_result">0/0</string>
     <string name="settings_browsing">浏览体验</string>
-    <string name="home_url_setting_hint">可留空；仅接受 HTTPS 地址。</string>
+    <string name="home_url_setting_hint">可留空；裸域名自动使用 HTTPS，也支持明确输入的其他 URI。</string>
     <string name="default_search_engine">默认搜索引擎</string>
     <string name="startup_behavior">启动时打开</string>
     <string name="start_home">首页</string>
@@ -112,7 +112,7 @@
     <string name="search_engine_baidu">百度</string>
     <string name="search_engine_bing">Bing</string>
     <string name="search_engine_duckduckgo">DuckDuckGo</string>
-    <string name="invalid_input">请输入有效的 HTTPS 网址或搜索内容。</string>
+    <string name="invalid_input">请输入有效的网址、URI 或搜索内容。</string>
     <string name="local_address_blocked">本地网络地址已阻止；可在设置中明确允许。</string>
     <string name="page_title_fallback">未命名页面</string>
     <string name="error_offline_title">设备未联网</string>

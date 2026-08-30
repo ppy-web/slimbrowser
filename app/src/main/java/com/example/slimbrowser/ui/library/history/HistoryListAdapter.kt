@@ -3,6 +3,7 @@ package com.example.slimbrowser.ui.library.history
 import android.net.Uri
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.core.view.ViewCompat
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
@@ -74,6 +75,7 @@ class HistoryListAdapter(
         private val binding: ItemHistorySectionBinding,
     ) : RecyclerView.ViewHolder(binding.root) {
         fun bind(item: HistoryListItem.Header) {
+            ViewCompat.setAccessibilityHeading(binding.root, true)
             binding.root.setText(
                 when (item.period) {
                     HistoryPeriod.TODAY -> R.string.history_today

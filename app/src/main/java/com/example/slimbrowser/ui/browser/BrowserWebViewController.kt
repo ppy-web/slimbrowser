@@ -70,7 +70,7 @@ class BrowserWebViewController(
         fun onPageStarted(url: String): Long
         fun onProgressChanged(navigationId: Long, progress: Int)
         fun onTitleChanged(navigationId: Long, title: String)
-        fun onFaviconChanged(navigationId: Long, icon: Bitmap?)
+        fun onFaviconChanged(navigationId: Long, pageUrl: String, icon: Bitmap?)
         fun onVisitedHistoryChanged(
             navigationId: Long,
             url: String,
@@ -189,12 +189,13 @@ class BrowserWebViewController(
         timeoutJob = null
         webView.stopLoading()
         webView.webChromeClient = null
-        webView.webViewClient = WebViewClient()
+        webView.webViewClient = DisposedWebViewClient()
         (webView.parent as? ViewGroup)?.removeView(webView)
         webView.destroy()
     }
 
     @SuppressLint("SetJavaScriptEnabled")
+    @Suppress("DEPRECATION") // Required compatibility/security setters remain relevant on API 26.
     private fun configureWebView(target: WebView) {
         WebView.setWebContentsDebuggingEnabled(false)
         target.setBackgroundColor(Color.TRANSPARENT)
@@ -264,7 +265,8 @@ class BrowserWebViewController(
         }
 
         override fun onReceivedIcon(view: WebView, icon: Bitmap?) {
-            listener.onFaviconChanged(activeNavigationId, icon)
+            val pageUrl = view.url.orEmpty()
+            listener.onFaviconChanged(navigationIdFor(pageUrl), pageUrl, icon)
         }
 
         override fun onPermissionRequest(request: PermissionRequest) {
@@ -338,7 +340,7 @@ class BrowserWebViewController(
             trackNavigationUrl(url, activeNavigationId)
             trackNavigationUrl(decision.url, activeNavigationId)
             startTimeout(activeNavigationId, decision.url)
-            favicon?.let { listener.onFaviconChanged(activeNavigationId, it) }
+            favicon?.let { listener.onFaviconChanged(activeNavigationId, decision.url, it) }
         }
 
         override fun doUpdateVisitedHistory(view: WebView, url: String, isReload: Boolean) {
@@ -479,5 +481,14 @@ class BrowserWebViewController(
     private companion object {
         const val PAGE_TIMEOUT_MILLIS = 30_000L
         const val MAX_TRACKED_URLS = 32
+    }
+
+    /** Absorbs a late renderer callback while a WebView is being destroyed. */
+    @SuppressLint("MissingOnRenderProcessGone") // The override below is intentionally terminal.
+    private class DisposedWebViewClient : WebViewClient() {
+        override fun onRenderProcessGone(
+            view: WebView,
+            detail: RenderProcessGoneDetail,
+        ): Boolean = true
     }
 }

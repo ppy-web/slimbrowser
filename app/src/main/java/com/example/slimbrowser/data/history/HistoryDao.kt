@@ -40,7 +40,7 @@ abstract class HistoryDao {
         UPDATE history_entries
         SET title = :title,
             host = :host,
-            faviconUri = :faviconUri,
+            faviconUri = COALESCE(:faviconUri, faviconUri),
             visitedAt = :visitedAt,
             visitCount = visitCount + 1
         WHERE url = :url
