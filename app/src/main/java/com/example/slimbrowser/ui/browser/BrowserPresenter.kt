@@ -23,7 +23,9 @@ class BrowserPresenter(
         observeJob?.cancel()
         observeJob = scope.launch {
             settings = preferences.settings.first()
-            currentUrl = settings.homeUrl
+            val persistedSessionUrl = preferences.lastSafeUrl.first()
+                .takeIf { it.isNotBlank() && UrlPolicy.isAllowedNavigation(it, settings.homeUrl) }
+            currentUrl = persistedSessionUrl ?: settings.homeUrl
             view.renderSettings(settings)
             view.applyFullscreen(settings.fullscreenEnabled)
             view.applyTheme(settings.darkThemeEnabled)
@@ -36,6 +38,7 @@ class BrowserPresenter(
                 restored -> Unit
                 !fallbackUrl.isNullOrBlank() && UrlPolicy.isAllowedNavigation(fallbackUrl, settings.homeUrl) ->
                     view.loadUrl(fallbackUrl)
+                !persistedSessionUrl.isNullOrBlank() -> view.loadUrl(persistedSessionUrl)
                 settings.homeUrl.isBlank() -> view.showBlankHome()
                 else -> view.loadUrl(settings.homeUrl)
             }
@@ -81,6 +84,7 @@ class BrowserPresenter(
         if (urlChanged || fullscreenChanged || themeChanged || backgroundChanged) {
             scope.launch {
                 preferences.update(normalizedUrl, fullscreenEnabled, darkThemeEnabled, backgroundUri)
+                if (urlChanged) preferences.setLastSafeUrl(normalizedUrl.takeUnless { it.isBlank() })
             }
         }
     }
@@ -108,10 +112,12 @@ class BrowserPresenter(
     override fun onPageStarted(url: String) {
         currentUrl = url
         view?.hideError()
+        persistSafeUrl(url)
     }
 
     override fun onPageFinished(url: String) {
         currentUrl = url
+        persistSafeUrl(url)
     }
 
     override fun onMainFrameError(message: String) {
@@ -124,6 +130,18 @@ class BrowserPresenter(
 
     override fun onRetryRequested() {
         view?.hideError()
-        if (currentUrl.isNotBlank()) view?.reloadPage()
+        if (currentUrl.isNotBlank() && currentUrl != "about:blank") {
+            // A renderer replacement creates a fresh WebView with no URL, so reload()
+            // alone would be a no-op. Loading the policy-approved URL handles both
+            // ordinary errors and renderer recovery.
+            view?.loadUrl(currentUrl)
+        } else {
+            view?.reloadPage()
+        }
+    }
+
+    private fun persistSafeUrl(url: String) {
+        if (url == "about:blank" || !UrlPolicy.isAllowedNavigation(url, settings.homeUrl)) return
+        scope.launch { preferences.setLastSafeUrl(UrlPolicy.normalize(url)) }
     }
 }

@@ -52,6 +52,14 @@ class BrowserPreferences(private val context: Context) {
             preferences[FAVORITES].orEmpty().mapNotNull(::decodeFavorite)
         }
 
+    /** The last main-frame URL accepted by the navigation policy. */
+    val lastSafeUrl: Flow<String> = context.browserDataStore.data
+        .catch { error ->
+            if (error is IOException) emit(androidx.datastore.preferences.core.emptyPreferences())
+            else throw error
+        }
+        .map { preferences -> preferences[LAST_SAFE_URL].orEmpty() }
+
     suspend fun addFavorite(url: String, title: String) {
         val favorite = Favorite(
             title = title.trim().replace(Regex("\\s+"), " ").take(120).ifBlank { url },
@@ -101,11 +109,19 @@ class BrowserPreferences(private val context: Context) {
         }
     }
 
+    suspend fun setLastSafeUrl(url: String?) {
+        context.browserDataStore.edit { preferences ->
+            if (url.isNullOrBlank()) preferences.remove(LAST_SAFE_URL)
+            else preferences[LAST_SAFE_URL] = url
+        }
+    }
+
     private companion object {
         val HOME_URL = stringPreferencesKey("home_url")
         val FULLSCREEN_ENABLED = booleanPreferencesKey("fullscreen_enabled")
         val DARK_THEME_ENABLED = booleanPreferencesKey("dark_theme_enabled")
         val BACKGROUND_URI = stringPreferencesKey("background_uri")
+        val LAST_SAFE_URL = stringPreferencesKey("last_safe_url")
         val FAVORITES = stringSetPreferencesKey("favorites")
 
         fun encodeFavorite(favorite: Favorite): String = Base64.getEncoder().encodeToString(

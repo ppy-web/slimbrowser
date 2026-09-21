@@ -138,6 +138,9 @@ class MainActivity : AppCompatActivity(), BrowserContract.View {
                 MotionEvent.ACTION_DOWN -> {
                     initialPinchSpan = 0f
                     pinchRevealTriggered = false
+                    // A normal tap is an intentional way to bring back the
+                    // transient controls; pinch remains supported as well.
+                    if (event.pointerCount == 1) revealControls()
                 }
                 MotionEvent.ACTION_POINTER_DOWN -> if (event.pointerCount >= 2) {
                     initialPinchSpan = event.pinchSpan()
@@ -208,6 +211,7 @@ class MainActivity : AppCompatActivity(), BrowserContract.View {
 
     override fun loadUrl(url: String) {
         hideError()
+        hideControlsImmediately()
         binding.searchFab.isVisible = false
         webView.loadUrl(url)
     }
@@ -221,6 +225,9 @@ class MainActivity : AppCompatActivity(), BrowserContract.View {
         binding.pageProgress.isVisible = false
         binding.errorOverlay.isVisible = false
         binding.searchFab.isVisible = true
+        // The blank home has no page content to gesture on, so expose the
+        // search entry and companion actions immediately.
+        revealControls()
     }
 
     override fun showSettings(settings: BrowserSettings, required: Boolean) {
