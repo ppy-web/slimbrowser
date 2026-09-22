@@ -134,6 +134,15 @@
     <string name="error_unknown_title">页面加载失败</string>
     <string name="error_unknown_message">发生未知错误。诊断代码：%1$s</string>
     <string name="open_network_settings">网络设置</string>
+    <!-- Compatibility labels used by the merged browser home layout. -->
+    <string name="home_welcome">欢迎使用 SlimBrowser</string>
+    <string name="address_hint">输入网址或搜索内容</string>
+    <string name="open_or_search">打开或搜索</string>
+    <string name="secure_connection">安全连接</string>
+    <string name="site_icon">网站图标</string>
+    <string name="tabs">标签页</string>
+    <string name="reading_mode">阅读模式</string>
+    <string name="network_settings">网络设置</string>
     <string name="copy_url">复制网址</string>
     <string name="copied_to_clipboard">网址已复制</string>
 
