@@ -43,7 +43,7 @@
 - [x] Preferences DataStore 保存主页地址和全屏状态
 - [x] 首次启动配置主页
 - [x] URL/URI 规范化与兼容分流（裸主机默认 HTTPS）
-- [x] 尽力支持明文 HTTP、混合内容、文件和内容 URI；Web 权限仍默认拒绝
+- [x] 尽力支持明文 HTTP、混合内容、文件和内容 URI；Web 权限不再由浏览器一律拒绝
 - [x] Safe Browsing、TLS 错误和 Renderer 崩溃基础处理
 - [x] 返回键优先回退 WebView 历史
 - [x] 页面错误覆盖层：按离线、DNS、TLS、Safe Browsing、HTTP、策略、超时和 Renderer 映射操作
@@ -113,7 +113,7 @@
 
 - [x] 为每种错误提供明确标题、说明和可执行按钮
 - [x] 无网络：重试、打开系统网络设置
-- [x] TLS/Safe Browsing：说明已阻止，不提供绕过按钮
+- [x] TLS/Safe Browsing：按用户请求继续尝试，保留 WebView/系统原生能力
 - [x] HTTP 错误：返回、重试、复制 URL
 - [~] Renderer 崩溃：创建新 WebView 后由“重试”恢复最后安全 URL（已提供同路径手工故障注入，待真实 Renderer 崩溃验证）
 - [x] 错误覆盖层支持无障碍焦点和 Live Region
@@ -145,7 +145,7 @@
 - [~] 隐私模式（API 37.1 自动化已验证不新增历史/持久会话和退出清 Cookie，仍待实体设备验证缓存/存储）
 - [~] 退出时清理隐私会话（API 37.1 已验证 Activity 正常结束；进程被系统直接杀死仍需平台矩阵验证）
 - [x] 第三方 Cookie 策略说明
-- [x] 站点权限策略（当前默认拒绝，未来支持按站点例外）
+- [x] 站点权限策略（不再由浏览器代码一律拒绝，最终由 Android 系统权限决定）
 
 ### 关于与诊断
 

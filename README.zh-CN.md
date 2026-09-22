@@ -65,22 +65,17 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 Presenter 接收由 Activity 生命周期管理的 `CoroutineScope`，在 `detach()` 后不会持有 Activity 引用。
 
-## 安全策略
+## 访问策略
 
-SlimBrowser 是一个范围受限的浏览器容器，不是面向任意网站的完整可信浏览器。当前包含以下安全措施：
+SlimBrowser 是供个人调试和测试网站的浏览器，核心原则是“用户要求打开，就尽力打开”，不建立域名白名单，也不强制 HTTPS-only：
 
-- Manifest 允许明文网络流量，以支持用户主动打开 HTTP 地址。
-- 主页面优先尝试 WebView；未知协议在用户输入/点击后委派给系统处理器。
-- TLS 证书错误始终取消，不调用 `SslErrorHandler.proceed()`。
-- 在系统 WebView 支持时启用 Safe Browsing。
-- 使用兼容性 Mixed Content。
-- 允许文件访问和 Content URI；仍禁止 file URL 跨域访问、地理位置、多窗口和自动 JavaScript 弹窗。
-- 拒绝网页的相机、麦克风等 Web 权限请求。
-- 禁用第三方 Cookie。
-- 不暴露 JavaScript Bridge。
-- 显式处理 WebView 渲染进程终止。
+- 主框架导航支持 HTTP/HTTPS、局域网和回环地址、文件/Content/Data/Blob URI，以及用户输入的其他合法 URI。
+- 自定义协议、`mailto:`、`tel:`、`geo:` 和 `intent:` 交给 Android 系统处理器；没有处理器时才提示失败。
+- 不因重定向来源、跨站跳转、混合内容、第三方 Cookie、证书错误或 Safe Browsing 告警而静默拒绝用户请求；WebView/系统仍可能因自身无法解析、网络不可达或平台权限而失败。
+- 本地文件调试需要的文件访问、跨文件 URL 访问、JavaScript、DOM Storage、混合内容和自动播放均保持开启。
+- 网页权限不再由浏览器代码一律拒绝，最终由 Android 系统权限和用户设备设置决定。
 
-由于现代网站通常需要 JavaScript 和 DOM Storage，应用仍然启用了这两项能力。若允许的网站遭到入侵，其 JavaScript 仍可在对应 WebView Origin 内运行。正式生产部署前，应根据场景增加域名白名单、下载/上传策略、外部 Intent 策略、身份认证和远程内容策略。
+这不是面向不可信用户的安全浏览器。请只在个人测试环境中使用；不要在其中输入不希望暴露给网页的账号、Cookie 或敏感数据。
 
 ## 测试
 

@@ -35,10 +35,23 @@ class NavigationPolicyTest {
     }
 
     @Test
-    fun `automatic redirects never launch an external application`() {
+    fun `automatic redirects also delegate valid external protocols`() {
         assertEquals(
-            NavigationDecision.Block(NavigationBlockReason.EXTERNAL_ACTION_REQUIRES_USER_GESTURE),
+            NavigationDecision.OpenExternal(ExternalAction.OpenUri("custom://open/item")),
             policy.decide("custom://open/item", NavigationSource.REDIRECT),
+        )
+        assertEquals(
+            NavigationDecision.OpenExternal(ExternalAction.OpenUri("custom://open/item")),
+            policy.decide("custom://open/item", NavigationSource.RESTORE),
+        )
+    }
+
+    @Test
+    fun `local network remains available regardless of legacy preference value`() {
+        val restrictiveSetting = NavigationPolicy(allowLocalNetwork = false)
+        assertEquals(
+            NavigationDecision.Allow("http://127.0.0.1:8080/"),
+            restrictiveSetting.decide("http://127.0.0.1:8080/", NavigationSource.MANUAL_INPUT),
         )
     }
 

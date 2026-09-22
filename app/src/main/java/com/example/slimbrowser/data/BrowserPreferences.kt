@@ -57,7 +57,7 @@ data class BrowserSettings(
     val desktopModeDefault: Boolean = false,
     val textZoom: Int = DEFAULT_TEXT_ZOOM,
     val darkWebMode: Boolean = false,
-    val allowLocalNetwork: Boolean = false,
+    val allowLocalNetwork: Boolean = true,
     val privateMode: Boolean = false,
     val clearPrivateOnExit: Boolean = true,
 ) {
@@ -137,7 +137,7 @@ class BrowserPreferences(private val context: Context) {
             textZoom = (preferences[TEXT_ZOOM] ?: BrowserSettings.DEFAULT_TEXT_ZOOM)
                 .coerceIn(BrowserSettings.MIN_TEXT_ZOOM, BrowserSettings.MAX_TEXT_ZOOM),
             darkWebMode = preferences[DARK_WEB_MODE] ?: false,
-            allowLocalNetwork = preferences[ALLOW_LOCAL_NETWORK] ?: false,
+            allowLocalNetwork = preferences[ALLOW_LOCAL_NETWORK] ?: true,
             privateMode = preferences[PRIVATE_MODE] ?: false,
             clearPrivateOnExit = preferences[CLEAR_PRIVATE_ON_EXIT] ?: true,
         )

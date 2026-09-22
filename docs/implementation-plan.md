@@ -27,31 +27,23 @@ No `org.jetbrains.kotlin.android` plugin is applied. AGP supplies built-in Kotli
 4. Apply the persisted fullscreen state through `WindowInsetsControllerCompat` and synchronize the fullscreen button representation.
 5. Restore the WebView bundle when available.
 6. If restoration is unavailable and no home URL is stored, present a non-cancelable settings dialog.
-7. Otherwise load the normalized persisted HTTPS URL.
+7. Otherwise load the normalized persisted URL/URI; bare hosts receive an HTTPS prefix.
 
 ## 4. URL policy
 
-Input is trimmed, rejected if blank or containing control characters, and receives an `https://` scheme when absent. Parsing uses `java.net.URI`. A URL is accepted only when:
+Input is trimmed, rejected only when blank or containing control characters, and receives an `https://` scheme when absent. Explicit HTTP, local addresses, credentials, arbitrary valid ports and WebView-supported URI schemes are preserved for development and testing. Unknown valid schemes are delegated to Android's handler.
 
-- Scheme is HTTPS, case-insensitively.
-- Host is present and syntactically valid; Unicode host names are converted with IDN STD3 rules.
-- User-info/embedded credentials are absent.
-- An explicit port is either omitted or 443.
-- Localhost and single-label DNS names are rejected. Valid IPv4/IPv6 literals remain usable for HTTPS development/test endpoints.
-
-The policy is applied to saved settings and every main-frame WebView navigation. Non-main-frame resources are still subject to WebView mixed-content and cleartext controls.
+The policy is applied to saved settings and every main-frame WebView navigation without a host allowlist. Only malformed input or an unavailable external handler can prevent a requested navigation.
 
 ## 5. WebView hardening
 
 The WebView configuration:
 
 - Enables JavaScript and DOM storage for modern web applications.
-- Disables file access, content access, database storage, geolocation, multiple windows, automatic JavaScript-created windows, and WebView debugging.
-- Denies mixed content and third-party cookies.
-- Requires a user gesture for media playback.
+- Enables file/content access, cross-file access, geolocation, mixed content, third-party cookies and media playback for local fixtures and compatibility testing.
 - Enables Safe Browsing through AndroidX WebKit feature detection.
-- Denies all Web permission requests.
-- Cancels every TLS error.
+- Does not blanket-deny Web permission requests.
+- Continues past TLS errors and Safe Browsing warnings at the user's request.
 - Does not expose `addJavascriptInterface`.
 
 This does not turn arbitrary web content into trusted application code. Production deployments should add an explicit hostname allowlist if the application is intended for one controlled origin.
@@ -64,7 +56,7 @@ The settings dialog also supports a persisted custom background image, restoring
 
 ## 6.2 Navigation, refresh, downloads, and uploads
 
-Main-frame HTTPS navigation is limited to the configured home host and its subdomains on the same effective port. HTTP, file, data, JavaScript, and other unsupported schemes are blocked. `mailto:`, `tel:`, and `sms:` links use external applications; `intent:` links are parsed only for safe view/send/dial actions. Redirects are checked again in `onPageStarted`.
+Main-frame navigation is not limited to the configured home host. HTTP, file, data, JavaScript and other supported schemes are passed to WebView; `mailto:`, `tel:`, `sms:`, custom and `intent:` links use external applications. Redirects follow the same permissive policy instead of being rejected for lacking a gesture.
 
 The app supports pull-to-refresh and a refresh floating button. WebView progress is shown as a progress bar and an accessible status label. Web downloads are handed to Android `DownloadManager` only for the configured HTTPS site. HTML file uploads use the system document picker and do not grant camera or microphone access.
 
@@ -120,7 +112,7 @@ Test at minimum on API 26 and API 37, using current Android System WebView/Chrom
 - Activity/process recreation state recovery.
 - DNS, offline, HTTP 4xx/5xx, invalid certificate, Safe Browsing, and retry behavior.
 - Renderer termination and replacement.
-- Confirmation that camera/microphone/geolocation prompts are denied and non-HTTPS navigation is blocked.
+- Confirmation that camera/microphone/geolocation requests follow Android permissions and non-HTTPS navigation remains usable.
 - Default-visible, bottom-centered action row.
 - Chinese interface and light/dark theme persistence, including wallpaper changes.
 - Same-site navigation, external link handling, download, upload, refresh, and loading-state behavior.

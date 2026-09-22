@@ -58,18 +58,17 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 - `data/BrowserPreferences.kt`：Preferences DataStore 仓库。
 - `domain/UrlPolicy.kt`：可进行 JVM 单元测试的严格 HTTPS 规范化与宽松 URI 导航规范化逻辑。
 
-## 安全策略
+## 访问策略
 
-- Manifest 允许明文流量，以支持用户显式打开 HTTP 地址。
-- 主页面优先由 WebView 打开任意合法 URI；自定义协议由系统应用尽力处理。
-- TLS 证书错误始终取消，不调用 `SslErrorHandler.proceed()`。
-- 在系统 WebView 支持时启用 Safe Browsing。
-- 允许兼容性 Mixed Content、文件和 Content URI，以提高旧站点和本地内容的可用性；仍禁止文件 URL 跨域访问、地理位置、多窗口和自动 JavaScript 弹窗。
-- 拒绝网页的相机、麦克风等 Web 权限请求。
-- 禁用第三方 Cookie，不暴露 JavaScript Bridge。
-- 显式处理 WebView 渲染进程终止。
+SlimBrowser 是供个人调试和测试网站的浏览器，核心原则是“用户要求打开，就尽力打开”，而不是建立域名白名单或 HTTPS-only 限制：
 
-由于现代网站通常需要 JavaScript 和 DOM Storage，应用仍然启用了这两项能力。正式生产部署前，应根据场景增加域名白名单、下载/上传策略、外部 Intent 策略、身份认证和远程内容策略。
+- 主框架导航支持 HTTP/HTTPS、局域网和回环地址、文件/Content/Data/Blob URI，以及用户输入的其他合法 URI。
+- 自定义协议、`mailto:`、`tel:`、`geo:` 和 `intent:` 会交给 Android 系统处理器；没有处理器时才提示失败。
+- 不因重定向来源、跨站跳转、混合内容、第三方 Cookie、证书错误或 Safe Browsing 告警而静默拒绝用户请求；WebView/系统仍可能因自身无法解析、网络不可达或平台权限而失败。
+- 本地文件调试需要的文件访问、跨文件 URL 访问、JavaScript、DOM Storage、混合内容和自动播放均保持开启。
+- 网页权限不再由浏览器代码一律拒绝，最终由 Android 系统权限和用户设备设置决定。
+
+这不是面向不可信用户的安全浏览器。请只在个人测试环境中使用；不要在其中输入不希望暴露给网页的账号、Cookie 或敏感数据。
 
 ## 测试
 

@@ -205,24 +205,26 @@ class BrowserWebViewController(
             databaseEnabled = false
             allowFileAccess = true
             allowContentAccess = true
-            allowFileAccessFromFileURLs = false
-            allowUniversalAccessFromFileURLs = false
-            mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+            // This app is a personal website/debugging browser. Let local fixtures and legacy
+            // pages behave like they do in a full browser; the user controls what is opened.
+            allowFileAccessFromFileURLs = true
+            allowUniversalAccessFromFileURLs = true
+            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
             setSupportMultipleWindows(false)
-            javaScriptCanOpenWindowsAutomatically = false
-            mediaPlaybackRequiresUserGesture = true
+            javaScriptCanOpenWindowsAutomatically = true
+            mediaPlaybackRequiresUserGesture = false
             loadsImagesAutomatically = true
             blockNetworkImage = false
             builtInZoomControls = true
             displayZoomControls = false
-            setGeolocationEnabled(false)
+            setGeolocationEnabled(true)
             saveFormData = false
             cacheMode = WebSettings.LOAD_DEFAULT
         }
         if (WebViewFeature.isFeatureSupported(WebViewFeature.SAFE_BROWSING_ENABLE)) {
             WebSettingsCompat.setSafeBrowsingEnabled(target.settings, true)
         }
-        CookieManager.getInstance().setAcceptThirdPartyCookies(target, false)
+        CookieManager.getInstance().setAcceptThirdPartyCookies(target, true)
         target.webChromeClient = SecureChromeClient()
         target.webViewClient = SecureClient()
         target.setOnLongClickListener { view ->
@@ -270,14 +272,16 @@ class BrowserWebViewController(
         }
 
         override fun onPermissionRequest(request: PermissionRequest) {
-            request.deny()
+            // Do not silently reject a site capability request. WebView/Android still applies
+            // the platform permission checks; this only removes the browser's blanket deny.
+            request.grant(request.resources)
         }
 
         override fun onGeolocationPermissionsShowPrompt(
             origin: String?,
             callback: GeolocationPermissions.Callback,
         ) {
-            callback.invoke(origin, false, false)
+            callback.invoke(origin, true, true)
         }
 
         override fun onShowFileChooser(
@@ -329,18 +333,26 @@ class BrowserWebViewController(
 
         override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
             val decision = listener.currentNavigationPolicy().decide(url, NavigationSource.REDIRECT)
-            if (decision !is NavigationDecision.Allow) {
-                view.stopLoading()
-                val reason = (decision as? NavigationDecision.Block)?.reason
-                    ?: NavigationBlockReason.INVALID_URL
-                listener.onNavigationBlocked(reason, url)
-                return
+            when (decision) {
+                is NavigationDecision.Allow -> {
+                    activeNavigationId = listener.onPageStarted(decision.url)
+                    trackNavigationUrl(url, activeNavigationId)
+                    trackNavigationUrl(decision.url, activeNavigationId)
+                    startTimeout(activeNavigationId, decision.url)
+                    favicon?.let { listener.onFaviconChanged(activeNavigationId, decision.url, it) }
+                }
+                is NavigationDecision.OpenExternal -> {
+                    // A redirect to a platform URI is still a valid user-requested navigation.
+                    // Stop WebView's unsupported load after handing it to the system handler.
+                    view.stopLoading()
+                    listener.onExternalAction(decision.action)
+                }
+                is NavigationDecision.Block -> {
+                    // Only malformed/control-character input reaches this path.
+                    view.stopLoading()
+                    listener.onNavigationBlocked(decision.reason, url)
+                }
             }
-            activeNavigationId = listener.onPageStarted(decision.url)
-            trackNavigationUrl(url, activeNavigationId)
-            trackNavigationUrl(decision.url, activeNavigationId)
-            startTimeout(activeNavigationId, decision.url)
-            favicon?.let { listener.onFaviconChanged(activeNavigationId, decision.url, it) }
         }
 
         override fun doUpdateVisitedHistory(view: WebView, url: String, isReload: Boolean) {
@@ -398,8 +410,9 @@ class BrowserWebViewController(
             handler: SslErrorHandler,
             error: android.net.http.SslError,
         ) {
-            handler.cancel()
-            reportError(error.url.orEmpty(), BrowserError.TlsFailure)
+            // This is intentionally a permissive debugging browser. The user chose the URL;
+            // allow inspection of sites with self-signed/expired certificates.
+            handler.proceed()
         }
 
         override fun onSafeBrowsingHit(
@@ -408,16 +421,15 @@ class BrowserWebViewController(
             threatType: Int,
             callback: SafeBrowsingResponseCompat,
         ) {
-            if (WebViewFeature.isFeatureSupported(WebViewFeature.SAFE_BROWSING_RESPONSE_BACK_TO_SAFETY)) {
-                callback.backToSafety(true)
+            if (WebViewFeature.isFeatureSupported(WebViewFeature.SAFE_BROWSING_RESPONSE_PROCEED)) {
+                callback.proceed(true)
             } else if (WebViewFeature.isFeatureSupported(
                     WebViewFeature.SAFE_BROWSING_RESPONSE_SHOW_INTERSTITIAL,
                 )
             ) {
-                callback.showInterstitial(true)
-            }
-            if (request.isForMainFrame) {
-                reportError(request.url.toString(), BrowserError.SafeBrowsingBlocked)
+                // Older WebViews can still show their own warning, but do not replace it with a
+                // native hard block in this app.
+                callback.showInterstitial(false)
             }
         }
 

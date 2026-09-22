@@ -36,7 +36,9 @@ enum class NavigationBlockReason {
  * Web-compatible schemes are loaded directly; every other syntactically valid URI is offered to
  * the platform through [ExternalLinkPolicy]. This deliberately accepts HTTP, private addresses,
  * file/content/data URIs and custom schemes so the browser makes a best effort for any user input.
- * Automatic redirect/restore never launches another app without an explicit user gesture.
+ * Redirects are handled with the same best-effort policy as direct navigation. This is a personal
+ * debugging browser, so a valid URI is not rejected merely because it came from a redirect or
+ * uses a non-HTTP scheme.
  */
 class NavigationPolicy(
     @Suppress("UNUSED_PARAMETER") val allowLocalNetwork: Boolean = true,
@@ -56,9 +58,8 @@ class NavigationPolicy(
         if (external is ExternalAction.Reject) {
             return NavigationDecision.Block(NavigationBlockReason.EXTERNAL_LINK_BLOCKED, external.reason)
         }
-        if (!source.hasUserGesture) {
-            return blocked(NavigationBlockReason.EXTERNAL_ACTION_REQUIRES_USER_GESTURE)
-        }
+        // Do not gate redirects on a gesture. The user explicitly asked for a permissive browser,
+        // and a site is allowed to hand navigation to its platform handler.
         return NavigationDecision.OpenExternal(external)
     }
 
