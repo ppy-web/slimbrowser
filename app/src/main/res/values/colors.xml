@@ -1,3 +1,14 @@
 <resources>
     <color name="seed">#355F8A</color>
+    <color name="glass_fab_fill">#3DFFFFFF</color>
+    <color name="glass_control_fill">#52FFFFFF</color>
+    <color name="glass_control_fill_subtle">#2EFFFFFF</color>
+    <color name="glass_control_outline">#B8FFFFFF</color>
+    <color name="glass_blurred_start">#66FFFFFF</color>
+    <color name="glass_blurred_end">#3DDBE9F5</color>
+    <color name="glass_fallback_start">#E6F6FAFF</color>
+    <color name="glass_fallback_end">#D9DCEAF5</color>
+    <color name="glass_opaque_start">#FAFFFFFF</color>
+    <color name="glass_opaque_end">#F2E8F1F8</color>
+    <color name="glass_outline">#B8FFFFFF</color>
 </resources>

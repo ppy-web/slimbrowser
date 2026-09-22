@@ -6,6 +6,24 @@
 >
 > 技术基线：Kotlin、XML Views、ViewBinding、Android System WebView、AndroidX WebKit、Material 3、DataStore、minSdk 26。
 
+## 已冻结的首版技术决策
+
+- 产品按“个人轻量浏览器”实现，不再限制到预设主页域名；所有主框架导航统一经过 `NavigationPolicy`。
+- 遵循用户主导的兼容策略：裸主机默认补 `https://`；HTTP/HTTPS、私网地址、`file:`、`content:`、`data:`、`blob:` 和用户显式输入的其他合法 URI 都尽力打开。WebView 不支持的协议交由系统已安装处理器尝试处理。
+- 域名尾点在规范化时移除，IDN 始终转换并显示为 ASCII Punycode，避免把 Unicode 同形域伪装成常见站点。
+- IPv4/IPv6 仍做语法解析；环回、链路本地和私有网段不再作为导航阻断条件，便于访问本地开发和设备服务。
+- 默认搜索引擎为百度，并提供 Bing、DuckDuckGo 的 HTTPS 模板；首页和地址栏共享同一个 `InputResolver`。
+- `intent:` 与未知 scheme 在用户手动输入或点击时尝试交给系统处理器；自动重定向不主动启动外部应用。 `tel:`/`mailto:`/`sms:` 使用对应系统动作，`geo:`/`market:` 仍需用户确认。
+- 结构化数据使用 Room 2.8.4，配合 KSP 2.3.6；少量偏好与轻量会话继续使用 DataStore。
+- 模块 17 和其他 P2 能力遵循需求驱动规则，不阻塞首版 P0/P1 发布验收。
+
+## 2026-08-23 实施与验收状态
+
+- 模块 1–16 的 P0/P1 代码路径已完成接线：三场景状态、宽松 URI 导航、外部协议委派、错误恢复、设置、Room 历史/收藏/下载、上传下载和浏览辅助操作均已落地。
+- 本轮补充了隐私会话清理、favicon 的私有存储与历史列表呈现、链接/图片长按菜单、同路径 WebView Renderer 恢复演练，以及内置离线兼容性测试页 `assets/slimbrowser-test.html`。
+- 当前已通过 `testDebugUnitTest`、`lintDebug`、`assembleDebug`、`assembleRelease` 和 API 37.1 的 `connectedDebugAndroidTest`；API 37.1 还手工验证了 HTTP 加载、工具栏边缘呼出、离线测试页及链接/图片长按。
+- 发布前仍需在 API 26、API 31+ 和目标 API 的真实设备/模拟器上完成降级玻璃、TalkBack/大字体、复杂上传下载/Blob、TLS/Safe Browsing、真实 Renderer 崩溃及带目标处理器的外部协议验证。详细逐项矩阵见 [`device-test-matrix.md`](device-test-matrix.md)，实时状态见 [`TODO.md`](TODO.md)。
+
 ---
 
 # 一、总体开发大纲
@@ -17,7 +35,7 @@
 3. **全屏但可退出**：沉浸式全屏不能隐藏所有逃生路径；边缘呼出、系统返回和工具栏必须行为一致。
 4. **Liquid Glass 克制使用**：玻璃效果只用于应用控制层，不给 WebView 内容本身施加模糊或滤镜。
 5. **本地优先**：历史、收藏、设置默认仅存本机；首版不建设账号和云同步。
-6. **安全失败优先**：TLS、Safe Browsing、危险 scheme 和未知外部 Intent 默认阻止，不提供绕过证书错误能力。
+6. **用户主导兼容**：TLS 和 Safe Browsing 仍不可绕过；协议兼容以用户显式输入/点击为主，WebView 无法打开时尝试安全地委派给系统处理器。
 7. **渐进增强**：API 31+ 使用更完整的模糊效果，API 26-30 使用透明渐变和描边降级。
 8. **模块可独立交付**：每个模块必须可构建、可测试、可验收，不以一次性大重构为前提。
 
@@ -282,7 +300,7 @@ sealed interface InputResolution {
 - `SearchEngine`：保存名称和 HTTPS 查询模板。
 - `NavigationPolicy`：处理网页点击、重定向、主框架 URL 和外部 scheme。
 
-普通个人浏览器建议允许任意语法合法的 HTTPS 端口；拒绝 HTTP、用户凭据、控制字符和危险 scheme。是否允许局域网/IP 地址作为单独设置项，不与默认公共浏览策略混合。
+普通个人浏览器以用户输入为准：裸主机默认补 HTTPS；显式 HTTP、带凭据的 URL、任意合法端口、局域网/IP、`file:`、`content:`、`data:`、`blob:` 和 `javascript:` 都优先交给 WebView 尝试。其他合法 scheme 在用户输入或点击时交给系统处理器；只有空白、控制字符、无法解析的 URI 或系统没有可处理应用时显示错误。自动重定向不得静默启动外部应用。
 
 ### 实现路径
 
@@ -300,14 +318,14 @@ sealed interface InputResolution {
 - HTTPS 443/8443。
 - IPv4、IPv6 完整/压缩/畸形形式。
 - Unicode IDN、同形域提示策略、尾点域名。
-- 空白、控制字符、凭据、`javascript:`、`data:`、`file:`。
+- 空白、控制字符、带凭据 URL、`javascript:`、`data:`、`file:`、`content:`、自定义 scheme 和没有处理器的场景。
 - 中文和英文搜索词、带空格关键词、URL 编码。
 
 ### 效果验证
 
 - `example.com` 打开 `https://example.com/`。
 - “android webview”进入默认搜索引擎。
-- 危险协议不加载，不启动未知 Intent。
+- 用户输入或点击的特殊协议会尽力打开；自动重定向不得静默跳出应用，失败时给出可理解的错误。
 - 网页点击和手工输入遵循同一安全规则。
 
 ---
@@ -364,8 +382,8 @@ sealed interface InputResolution {
 - `mailto:` → `ACTION_SENDTO`。
 - `geo:` → 用户确认后打开。
 - `market:` → 用户确认后打开应用商店。
-- `intent:` → 默认拒绝；如支持，必须解析后校验 package、fallback URL 和类别。
-- 未知 scheme → 显示确认/错误，不静默启动。
+- `intent:` → 用户手动输入或点击时按可浏览 Intent 尽力交给系统；无处理器时显示错误。
+- 未知 scheme → 用户输入或点击时尝试系统处理器；自动跳转不静默启动外部应用。
 
 ### 实现路径
 
@@ -380,7 +398,7 @@ sealed interface InputResolution {
 - 电话只进入拨号界面。
 - 邮件只打开邮件客户端。
 - 未安装外部应用时不崩溃。
-- `intent:` 和未知 scheme 不会静默跳出应用。
+- `intent:` 和未知 scheme 在用户触发时可调用已安装处理器；自动重定向不会静默跳出应用。
 
 ---
 

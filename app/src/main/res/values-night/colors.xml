@@ -1,0 +1,9 @@
+<resources>
+    <color name="glass_blurred_start">#70303A46</color>
+    <color name="glass_blurred_end">#66304E63</color>
+    <color name="glass_fallback_start">#EB1D2630</color>
+    <color name="glass_fallback_end">#E6263848</color>
+    <color name="glass_opaque_start">#FA18212A</color>
+    <color name="glass_opaque_end">#F5253340</color>
+    <color name="glass_outline">#66FFFFFF</color>
+</resources>

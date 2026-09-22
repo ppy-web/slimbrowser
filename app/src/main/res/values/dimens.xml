@@ -1,0 +1,9 @@
+<resources>
+    <dimen name="glass_corner_radius">24dp</dimen>
+    <dimen name="glass_search_corner_radius">28dp</dimen>
+    <dimen name="glass_settings_corner_radius">20dp</dimen>
+    <dimen name="glass_blur_radius">18dp</dimen>
+    <dimen name="glass_outline_width">1dp</dimen>
+    <dimen name="glass_elevation">8dp</dimen>
+    <dimen name="browser_touch_target">48dp</dimen>
+</resources>

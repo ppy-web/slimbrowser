@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/png" href="file:///android_res/drawable/ic_silmbo.png">
+  <title>SlimBrowser 兼容性测试页</title>
+  <style>
+    body { font: 16px system-ui, sans-serif; line-height: 1.6; margin: 24px; color: #1d1b20; }
+    h1 { font-size: 24px; } section { border-top: 1px solid #ddd; margin-top: 20px; padding-top: 12px; }
+    a, button, input { display: block; margin: 10px 0; min-height: 44px; }
+    img { width: 80px; height: 80px; border-radius: 12px; }
+  </style>
+</head>
+<body>
+  <h1>SlimBrowser 本地兼容性测试</h1>
+  <p>此页完全离线，可用于检查文件 URI、链接长按、上传和 Blob 下载流程。</p>
+
+  <section>
+    <h2>导航与外部协议</h2>
+    <a href="https://example.com/">HTTPS 示例网页</a>
+    <a href="http://example.com/">HTTP 示例网页</a>
+    <a href="mailto:demo@example.com?subject=SlimBrowser%20test">邮件协议</a>
+    <a href="custom://slimbrowser/test">自定义协议（无处理器时应提示而不崩溃）</a>
+  </section>
+
+  <section>
+    <h2>长按链接和图片</h2>
+    <a href="https://www.iana.org/domains/example">长按此链接</a>
+    <img alt="测试图片" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Crect width='80' height='80' rx='12' fill='%23774cff'/%3E%3Ctext x='40' y='48' text-anchor='middle' font-size='20' fill='white'%3EIMG%3C/text%3E%3C/svg%3E">
+  </section>
+
+  <section>
+    <h2>文件上传与 Blob 下载</h2>
+    <input type="file" aria-label="选择上传文件">
+    <button id="blob-download" type="button">生成并下载 Blob 文本</button>
+  </section>
+
+  <script>
+    document.getElementById('blob-download').addEventListener('click', () => {
+      const blob = new Blob(['SlimBrowser blob download test\n'], { type: 'text/plain' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'slimbrowser-blob-test.txt';
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    });
+  </script>
+</body>
+</html>

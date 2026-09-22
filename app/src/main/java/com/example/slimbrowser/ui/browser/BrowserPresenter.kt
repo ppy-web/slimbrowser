@@ -23,9 +23,7 @@ class BrowserPresenter(
         observeJob?.cancel()
         observeJob = scope.launch {
             settings = preferences.settings.first()
-            val persistedSessionUrl = preferences.lastSafeUrl.first()
-                .takeIf { it.isNotBlank() && UrlPolicy.isAllowedNavigation(it, settings.homeUrl) }
-            currentUrl = persistedSessionUrl ?: settings.homeUrl
+            currentUrl = settings.homeUrl
             view.renderSettings(settings)
             view.applyFullscreen(settings.fullscreenEnabled)
             view.applyTheme(settings.darkThemeEnabled)
@@ -38,7 +36,6 @@ class BrowserPresenter(
                 restored -> Unit
                 !fallbackUrl.isNullOrBlank() && UrlPolicy.isAllowedNavigation(fallbackUrl, settings.homeUrl) ->
                     view.loadUrl(fallbackUrl)
-                !persistedSessionUrl.isNullOrBlank() -> view.loadUrl(persistedSessionUrl)
                 settings.homeUrl.isBlank() -> view.showBlankHome()
                 else -> view.loadUrl(settings.homeUrl)
             }
@@ -75,17 +72,29 @@ class BrowserPresenter(
         currentUrl = normalizedUrl
         view?.renderSettings(settings)
         view?.applyFullscreen(fullscreenEnabled)
-        view?.applyTheme(darkThemeEnabled)
-        view?.applyBackground(backgroundUri)
         view?.updateFullscreenButton(fullscreenEnabled)
         if (urlChanged) {
             if (normalizedUrl.isBlank()) view?.showBlankHome() else view?.loadUrl(normalizedUrl)
         }
         if (urlChanged || fullscreenChanged || themeChanged || backgroundChanged) {
-            scope.launch {
-                preferences.update(normalizedUrl, fullscreenEnabled, darkThemeEnabled, backgroundUri)
-                if (urlChanged) preferences.setLastSafeUrl(normalizedUrl.takeUnless { it.isBlank() })
+            if (themeChanged) {
+                // AppCompat may recreate the Activity when the night mode changes. Persist the
+                // new value first so the recreated Activity cannot briefly restore the old theme.
+                scope.launch {
+                    preferences.update(normalizedUrl, fullscreenEnabled, darkThemeEnabled, backgroundUri)
+                    view?.applyTheme(darkThemeEnabled)
+                    view?.applyBackground(backgroundUri)
+                }
+            } else {
+                view?.applyTheme(darkThemeEnabled)
+                view?.applyBackground(backgroundUri)
+                scope.launch {
+                    preferences.update(normalizedUrl, fullscreenEnabled, darkThemeEnabled, backgroundUri)
+                }
             }
+        } else {
+            view?.applyTheme(darkThemeEnabled)
+            view?.applyBackground(backgroundUri)
         }
     }
 
@@ -112,12 +121,10 @@ class BrowserPresenter(
     override fun onPageStarted(url: String) {
         currentUrl = url
         view?.hideError()
-        persistSafeUrl(url)
     }
 
     override fun onPageFinished(url: String) {
         currentUrl = url
-        persistSafeUrl(url)
     }
 
     override fun onMainFrameError(message: String) {
@@ -130,18 +137,6 @@ class BrowserPresenter(
 
     override fun onRetryRequested() {
         view?.hideError()
-        if (currentUrl.isNotBlank() && currentUrl != "about:blank") {
-            // A renderer replacement creates a fresh WebView with no URL, so reload()
-            // alone would be a no-op. Loading the policy-approved URL handles both
-            // ordinary errors and renderer recovery.
-            view?.loadUrl(currentUrl)
-        } else {
-            view?.reloadPage()
-        }
-    }
-
-    private fun persistSafeUrl(url: String) {
-        if (url == "about:blank" || !UrlPolicy.isAllowedNavigation(url, settings.homeUrl)) return
-        scope.launch { preferences.setLastSafeUrl(UrlPolicy.normalize(url)) }
+        if (currentUrl.isNotBlank()) view?.reloadPage()
     }
 }
