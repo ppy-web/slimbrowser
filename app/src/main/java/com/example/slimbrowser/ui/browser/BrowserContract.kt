@@ -2,7 +2,6 @@ package com.example.slimbrowser.ui.browser
 
 import android.os.Bundle
 import com.example.slimbrowser.data.BrowserSettings
-import com.example.slimbrowser.data.StartupMode
 
 interface BrowserContract {
     interface View {
@@ -20,7 +19,6 @@ interface BrowserContract {
         fun reloadPage()
         fun restoreWebViewState(state: Bundle): Boolean
         fun canGoBack(): Boolean
-        fun isHomeVisible(): Boolean
         fun goBack()
         fun finishScreen()
     }
@@ -34,13 +32,6 @@ interface BrowserContract {
             fullscreenEnabled: Boolean,
             darkThemeEnabled: Boolean,
             backgroundUri: String?,
-            searchEngine: String,
-            startupMode: StartupMode,
-            toolbarAtBottom: Boolean,
-            desktopMode: Boolean,
-            fontScale: Int,
-            darkWebMode: Boolean,
-            privateMode: Boolean,
         )
         fun onFullscreenShortcutRequested()
         fun onRefreshRequested()
