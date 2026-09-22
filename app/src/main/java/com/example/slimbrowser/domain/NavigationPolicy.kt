@@ -6,6 +6,7 @@ import java.util.Locale
 enum class NavigationSource(val hasUserGesture: Boolean) {
     MANUAL_INPUT(hasUserGesture = true),
     LINK_CLICK(hasUserGesture = true),
+    DEEP_LINK(hasUserGesture = true),
     REDIRECT(hasUserGesture = false),
     RESTORE(hasUserGesture = false),
     INTERNAL(hasUserGesture = false),

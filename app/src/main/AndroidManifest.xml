@@ -20,11 +20,44 @@
         <activity
             android:name=".ui.browser.MainActivity"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
+            android:launchMode="singleTask"
             android:exported="true">
+
+            <!-- App Launcher -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- 1. URL Scheme Deep Links：自定义协议，如 slimbrowser://open?url=... -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="slimbrowser" />
+            </intent-filter>
+
+            <!-- 2. Android App Links：HTTPS 域名绑定，Android 6+ 自动验证
+                 支持 www.slimbrowser.com 和 slimbrowser.com 域名
+                 需在 .well-known/assetlinks.json 中配置 Digital Asset Links -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="www.slimbrowser.com" />
+                <data android:scheme="https" android:host="slimbrowser.com" />
+            </intent-filter>
+
+            <!-- 3. Universal Links：与 App Links 共享同一 intent-filter（Android 侧统一处理）
+                 iOS 侧需在 apple-app-site-association 中单独配置 -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="www.slimbrowser.com" android:pathPrefix="/u" />
+                <data android:scheme="https" android:host="slimbrowser.com" android:pathPrefix="/u" />
+            </intent-filter>
+
         </activity>
     </application>
 

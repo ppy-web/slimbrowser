@@ -194,6 +194,14 @@ class MainActivity : AppCompatActivity(), BrowserWebViewController.Listener, Set
     }
 
     private fun restoreSavedScene(savedInstanceState: Bundle?, webViewRestored: Boolean) {
+        // Deep link takes highest priority over any saved scene state
+        val deepLinkUri = intent?.data
+        if (deepLinkUri != null) {
+            intent = Intent(intent).apply { data = null }   // consume so it is not re-processed
+            handleDeepLink(deepLinkUri)
+            return
+        }
+
         val savedScene = savedInstanceState.enumValueOrNull<AppScene>(KEY_APP_SCENE)
         val savedPreviousScene = savedInstanceState.enumValueOrNull<AppScene>(KEY_PREVIOUS_SCENE)
             ?: AppScene.HOME
@@ -945,6 +953,48 @@ class MainActivity : AppCompatActivity(), BrowserWebViewController.Listener, Set
     }
     override fun onDestroy() { hideToolbarJob?.cancel(); fileCallback?.onReceiveValue(null); downloadsCoordinator.close(); externalActions.close(); web.destroy(); super.onDestroy() }
     override fun onConfigurationChanged(newConfig: Configuration) { super.onConfigurationChanged(newConfig); applySettings(settings) }
+
+    /** Handle deep link intents when the app is already running (singleTask launchMode). */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        val data = intent.data
+        if (data != null) {
+            handleDeepLink(data)
+        }
+    }
+
+    /**
+     * Process a deep link URI.
+     *
+     * Supports three deep link types:
+     * 1. **URL Scheme** — e.g. `slimbrowser://open?url=https://example.com`
+     * 2. **Android App Links** — HTTPS links from verified domains (e.g. `https://www.slimbrowser.com/...`)
+     * 3. **Universal Links** — HTTPS links under `/u` path prefix (e.g. `https://www.slimbrowser.com/u/...`)
+     *
+     * For URL Scheme links, the `url` query parameter is extracted and navigated to.
+     * For App Links / Universal Links the full HTTPS URL is navigated to directly.
+     */
+    private fun handleDeepLink(uri: Uri) {
+        val urlString = when (uri.scheme) {
+            SCHEME_SLIMBROWSER -> {
+                // URL Scheme: slimbrowser://open?url=<encoded-url>
+                // slimbrowser://navigate?url=<encoded-url>
+                // Falls back to home if no url parameter is provided.
+                uri.getQueryParameter(PARAM_URL).orEmpty()
+            }
+            SCHEME_HTTPS, SCHEME_HTTP -> {
+                // App Links / Universal Links: the full HTTPS URL
+                uri.toString()
+            }
+            else -> uri.toString()
+        }
+        if (urlString.isNotBlank()) {
+            openUrl(urlString, NavigationSource.DEEP_LINK)
+        } else {
+            showHome()
+        }
+    }
+
     private companion object {
         const val KEY_WEB_STATE = "web_state"
         const val KEY_APP_SCENE = "app_scene"
@@ -952,6 +1002,10 @@ class MainActivity : AppCompatActivity(), BrowserWebViewController.Listener, Set
         const val LOCAL_TEST_PAGE_URL = "file:///android_asset/slimbrowser-test.html"
         const val TOOLBAR_ANIMATION_MILLIS = 180L
         const val SCENE_FADE_MILLIS = 140L
+        const val SCHEME_SLIMBROWSER = "slimbrowser"
+        const val SCHEME_HTTPS = "https"
+        const val SCHEME_HTTP = "http"
+        const val PARAM_URL = "url"
     }
 }
 
